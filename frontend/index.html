@@ -2,90 +2,163 @@
 <html>
 <head>
 <meta charset="UTF-8">
-  <title>CRUD Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: system-ui; background:#0f172a; color:white; }
-    .container { max-width:600px; margin:auto; padding:20px; }
-    input, button { padding:10px; margin:5px; border-radius:8px; border:none; }
-    button { background:#3b82f6; color:white; cursor:pointer; }
-    .item { background:#1e293b; padding:10px; margin:5px 0; border-radius:10px; display:flex; justify-content:space-between; }
-    .stats { margin-bottom:10px; font-weight:bold; }
-  </style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>CRUD Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: white;
+}
+
+.light {
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --text: black;
+}
+
+body {
+  font-family: system-ui;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 15px;
+}
+
+input, button {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 8px;
+  border: none;
+}
+
+button {
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+.item {
+  background: var(--card);
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.controls {
+  display: flex;
+  gap: 5px;
+}
+
+.pagination {
+  text-align: center;
+  margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+  .item {
+    flex-direction: column;
+  }
+}
+</style>
 </head>
 
 <body>
 <div class="container">
 
-  <h1>🚀 CRUD Dashboard</h1>
+<h2>
+CRUD Dashboard
+<span onclick="toggleMode()" style="float:right;cursor:pointer;">🌓</span>
+</h2>
 
-  <!-- STATS -->
-  <div class="stats" id="stats">Total Items: 0</div>
+<input id="search" placeholder="Search..." onkeyup="searchItems()">
 
-  <!-- INPUT -->
-  <input id="name" placeholder="Enter item name"/>
-  <button onclick="saveItem()">Save</button>
+<input id="name" placeholder="Enter item">
+<button onclick="saveItem()">Save</button>
 
-  <!-- LIST -->
-  <div id="list"></div>
+<div id="list"></div>
+
+<div class="pagination">
+  <button onclick="prev()">Prev</button>
+  <span id="pageInfo"></span>
+  <button onclick="next()">Next</button>
+</div>
+
+<canvas id="chart" height="200"></canvas>
 
 </div>
 
 <script>
+let page = 1;
+let totalPages = 1;
 let editId = null;
+let searchQuery = '';
+let chart;
 
 // LOAD DATA
 async function load() {
-  try {
-    // get items
-    let res = await fetch('/api/items');
-    let items = await res.json();
+  let res = await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
+  let result = await res.json();
 
-    // get stats
-    let statsRes = await fetch('/api/stats');
-    let stats = await statsRes.json();
+  totalPages = result.pages;
 
-    document.getElementById('stats').innerText = "Total Items: " + stats.total;
+  document.getElementById('pageInfo').innerText =
+    `Page ${page} / ${totalPages}`;
 
-    let list = document.getElementById('list');
-    list.innerHTML = '';
+  let list = document.getElementById('list');
+  list.innerHTML = '';
 
-    items.forEach(i => {
-      list.innerHTML += `
-        <div class="item">
-          ${escapeHtml(i.name)}
-          <div>
-            <button onclick="editItem(${i.id}, '${encodeURIComponent(i.name)}')">✏️</button>
-            <button onclick="deleteItem(${i.id})">❌</button>
-          </div>
+  result.data.forEach(i => {
+    list.innerHTML += `
+      <div class="item">
+        ${escapeHtml(i.name)}
+        <div class="controls">
+          <button onclick="editItem(${i.id}, '${encodeURIComponent(i.name)}')">Edit</button>
+          <button onclick="deleteItem(${i.id})">Delete</button>
         </div>
-      `;
-    });
+      </div>
+    `;
+  });
 
-  } catch (err) {
-    console.error("Error loading data:", err);
-  }
+  loadChart();
 }
 
-// SAVE (CREATE or UPDATE)
+// SEARCH
+function searchItems() {
+  searchQuery = document.getElementById('search').value;
+  page = 1;
+  load();
+}
+
+// SAVE
 async function saveItem() {
-  const name = document.getElementById('name').value;
+  let name = document.getElementById('name').value;
 
   if (!name) return alert("Enter name");
 
   if (editId) {
-    // UPDATE
     await fetch(`/api/items/${editId}`, {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
     editId = null;
   } else {
-    // CREATE
     await fetch('/api/items', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
   }
@@ -106,16 +179,57 @@ async function deleteItem(id) {
   load();
 }
 
-// SAFE TEXT (prevent breaking UI)
-function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+// PAGINATION
+function next() {
+  if (page < totalPages) {
+    page++;
+    load();
+  }
 }
 
-// INITIAL LOAD
+function prev() {
+  if (page > 1) {
+    page--;
+    load();
+  }
+}
+
+// THEME
+function toggleMode() {
+  document.body.classList.toggle('light');
+}
+
+// CHART
+async function loadChart() {
+  let res = await fetch('/api/stats/chart');
+  let data = await res.json();
+
+  let labels = data.map(i => i.label);
+  let values = data.map(i => i.count);
+
+  let ctx = document.getElementById('chart').getContext('2d');
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Items by First Letter',
+        data: values
+      }]
+    }
+  });
+}
+
+// SAFE HTML
+function escapeHtml(text) {
+  return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 load();
 </script>
+
 </body>
 </html>
