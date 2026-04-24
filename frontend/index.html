@@ -6,8 +6,6 @@
 
 <title>CRUD Dashboard</title>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 :root {
   --bg: #0f172a;
@@ -29,9 +27,32 @@ body {
 }
 
 .container {
-  max-width: 600px;
+  max-width: 700px;
   margin: auto;
   padding: 15px;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* SEARCH BOX RIGHT */
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
 }
 
 input, button {
@@ -67,7 +88,13 @@ button {
   margin-top: 10px;
 }
 
+/* MOBILE */
 @media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
   .item {
     flex-direction: column;
   }
@@ -76,27 +103,36 @@ button {
 </head>
 
 <body>
+
 <div class="container">
 
-<h2>
-CRUD Dashboard
-<span onclick="toggleMode()" style="float:right;cursor:pointer;">🌓</span>
-</h2>
+  <!-- HEADER -->
+  <div class="header">
+    <h2>
+      CRUD Dashboard
+      <span onclick="toggleMode()" style="cursor:pointer;">🌓</span>
+    </h2>
 
-<input id="search" placeholder="Search..." onkeyup="searchItems()">
+    <!-- SEARCH RIGHT -->
+    <div class="search-box">
+      🔍
+      <input id="search" placeholder="Search..." onkeyup="searchItems()">
+    </div>
+  </div>
 
-<input id="name" placeholder="Enter item">
-<button onclick="saveItem()">Save</button>
+  <!-- INPUT -->
+  <input id="name" placeholder="Enter item">
+  <button onclick="saveItem()">Save</button>
 
-<div id="list"></div>
+  <!-- LIST -->
+  <div id="list"></div>
 
-<div class="pagination">
-  <button onclick="prev()">Prev</button>
-  <span id="pageInfo"></span>
-  <button onclick="next()">Next</button>
-</div>
-
-<canvas id="chart" height="200"></canvas>
+  <!-- PAGINATION -->
+  <div class="pagination">
+    <button onclick="prev()">Prev</button>
+    <span id="pageInfo"></span>
+    <button onclick="next()">Next</button>
+  </div>
 
 </div>
 
@@ -105,7 +141,6 @@ let page = 1;
 let totalPages = 1;
 let editId = null;
 let searchQuery = '';
-let chart;
 
 // LOAD DATA
 async function load() {
@@ -131,8 +166,6 @@ async function load() {
       </div>
     `;
   });
-
-  loadChart();
 }
 
 // SEARCH
@@ -199,31 +232,12 @@ function toggleMode() {
   document.body.classList.toggle('light');
 }
 
-// CHART
-async function loadChart() {
-  let res = await fetch('/api/stats/chart');
-  let data = await res.json();
-
-  let ctx = document.getElementById('chart').getContext('2d');
-
-  if (chart) chart.destroy();
-
-  chart = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: data.labels,
-      datasets: [{
-        label: 'Item Distribution',
-        data: data.values
-      }]
-    }
-  });
-}
-  // SAFE HTML
+// SAFE HTML
 function escapeHtml(text) {
   return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// INIT
 load();
 </script>
 
