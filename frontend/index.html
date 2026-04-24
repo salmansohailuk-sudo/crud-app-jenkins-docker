@@ -39,7 +39,7 @@ body {
   align-items: center;
 }
 
-/* SEARCH BOX RIGHT */
+/* SEARCH */
 .search-box {
   display: flex;
   align-items: center;
@@ -55,6 +55,16 @@ body {
   color: var(--text);
 }
 
+/* ERROR BOX */
+.error {
+  background: #ef4444;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 10px 0;
+  display: none;
+}
+
+/* INPUT */
 input, button {
   padding: 10px;
   margin: 5px;
@@ -113,12 +123,14 @@ button {
       <span onclick="toggleMode()" style="cursor:pointer;">🌓</span>
     </h2>
 
-    <!-- SEARCH RIGHT -->
     <div class="search-box">
       🔍
       <input id="search" placeholder="Search..." onkeyup="searchItems()">
     </div>
   </div>
+
+  <!-- ERROR MESSAGE -->
+  <div id="errorBox" class="error"></div>
 
   <!-- INPUT -->
   <input id="name" placeholder="Enter item">
@@ -141,6 +153,17 @@ let page = 1;
 let totalPages = 1;
 let editId = null;
 let searchQuery = '';
+
+// SHOW ERROR
+function showError(message) {
+  const box = document.getElementById('errorBox');
+  box.innerText = message;
+  box.style.display = 'block';
+
+  setTimeout(() => {
+    box.style.display = 'none';
+  }, 3000);
+}
 
 // LOAD DATA
 async function load() {
@@ -175,25 +198,37 @@ function searchItems() {
   load();
 }
 
-// SAVE
+// SAVE (HANDLE ERRORS HERE)
 async function saveItem() {
   let name = document.getElementById('name').value;
 
-  if (!name) return alert("Enter name");
+  if (!name) {
+    showError("Please enter a value");
+    return;
+  }
+
+  let response;
 
   if (editId) {
-    await fetch(`/api/items/${editId}`, {
+    response = await fetch(`/api/items/${editId}`, {
       method:'PUT',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
     editId = null;
   } else {
-    await fetch('/api/items', {
+    response = await fetch('/api/items', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
+  }
+
+  let result = await response.json();
+
+  if (!response.ok) {
+    showError(result.error || "Something went wrong");
+    return;
   }
 
   document.getElementById('name').value = '';
@@ -208,7 +243,14 @@ function editItem(id, name) {
 
 // DELETE
 async function deleteItem(id) {
-  await fetch(`/api/items/${id}`, {method:'DELETE'});
+  let response = await fetch(`/api/items/${id}`, {method:'DELETE'});
+
+  if (!response.ok) {
+    let result = await response.json();
+    showError(result.error || "Delete failed");
+    return;
+  }
+
   load();
 }
 
