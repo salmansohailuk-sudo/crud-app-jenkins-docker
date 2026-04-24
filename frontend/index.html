@@ -1,51 +1,119 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>CRUD App</title>
+  <title>CRUD Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: system-ui; background:#0f172a; color:white; }
     .container { max-width:600px; margin:auto; padding:20px; }
-    input, button { padding:10px; margin:5px; border-radius:8px; }
-    button { background:#3b82f6; color:white; }
-    .item { background:#1e293b; padding:10px; margin:5px; display:flex; justify-content:space-between; }
+    input, button { padding:10px; margin:5px; border-radius:8px; border:none; }
+    button { background:#3b82f6; color:white; cursor:pointer; }
+    .item { background:#1e293b; padding:10px; margin:5px 0; border-radius:10px; display:flex; justify-content:space-between; }
+    .stats { margin-bottom:10px; font-weight:bold; }
   </style>
 </head>
+
 <body>
 <div class="container">
-  <h1>CRUD Dashboard</h1>
-  <input id="name" placeholder="Enter item"/>
-  <button onclick="add()">Add</button>
+
+  <h1>🚀 CRUD Dashboard</h1>
+
+  <!-- STATS -->
+  <div class="stats" id="stats">Total Items: 0</div>
+
+  <!-- INPUT -->
+  <input id="name" placeholder="Enter item name"/>
+  <button onclick="saveItem()">Save</button>
+
+  <!-- LIST -->
   <div id="list"></div>
+
 </div>
 
 <script>
+let editId = null;
+
+// LOAD DATA
 async function load() {
-  let res = await fetch('/api/items');
-  let data = await res.json();
-  let list = document.getElementById('list');
-  list.innerHTML = '';
-  data.forEach(i => {
-    list.innerHTML += `<div class="item">${i.name}
-      <button onclick="del(${i.id})">❌</button></div>`;
-  });
+  try {
+    // get items
+    let res = await fetch('/api/items');
+    let items = await res.json();
+
+    // get stats
+    let statsRes = await fetch('/api/stats');
+    let stats = await statsRes.json();
+
+    document.getElementById('stats').innerText = "Total Items: " + stats.total;
+
+    let list = document.getElementById('list');
+    list.innerHTML = '';
+
+    items.forEach(i => {
+      list.innerHTML += `
+        <div class="item">
+          ${escapeHtml(i.name)}
+          <div>
+            <button onclick="editItem(${i.id}, '${encodeURIComponent(i.name)}')">✏️</button>
+            <button onclick="deleteItem(${i.id})">❌</button>
+          </div>
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error("Error loading data:", err);
+  }
 }
 
-async function add() {
-  let name = document.getElementById('name').value;
-  await fetch('/api/items', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({name})
-  });
+// SAVE (CREATE or UPDATE)
+async function saveItem() {
+  const name = document.getElementById('name').value;
+
+  if (!name) return alert("Enter name");
+
+  if (editId) {
+    // UPDATE
+    await fetch(`/api/items/${editId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name})
+    });
+    editId = null;
+  } else {
+    // CREATE
+    await fetch('/api/items', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name})
+    });
+  }
+
+  document.getElementById('name').value = '';
   load();
 }
 
-async function del(id) {
+// EDIT
+function editItem(id, name) {
+  document.getElementById('name').value = decodeURIComponent(name);
+  editId = id;
+}
+
+// DELETE
+async function deleteItem(id) {
   await fetch(`/api/items/${id}`, {method:'DELETE'});
   load();
 }
 
+// SAFE TEXT (prevent breaking UI)
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// INITIAL LOAD
 load();
 </script>
 </body>
