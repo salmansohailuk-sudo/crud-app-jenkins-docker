@@ -6,40 +6,45 @@
 <title>CRUD Dashboard</title>
 
 <style>
-:root {
-  --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --primary:#3b82f6;
-}
-.light {
-  --bg:#f8fafc; --card:#fff; --text:#0f172a;
-}
-body {font-family:system-ui;background:var(--bg);color:var(--text);margin:0;}
-.container {max-width:650px;margin:auto;padding:15px;}
+body {font-family:system-ui;background:#f8fafc;color:#0f172a;margin:0;}
+.container {max-width:700px;margin:auto;padding:20px;}
 
 .header {display:flex;justify-content:space-between;align-items:center;}
 
-.search-box {display:flex;align-items:center;background:var(--card);padding:6px;border-radius:10px;}
-.search-box input {border:none;background:transparent;color:var(--text);margin-left:5px;}
+.search-box {
+  display:flex;align-items:center;background:#fff;padding:8px 12px;
+  border-radius:10px;border:1px solid #e2e8f0;
+}
+.search-box input {border:none;outline:none;margin-left:6px;}
 
-input,button {padding:10px;margin:5px;border:none;border-radius:10px;}
-button {background:var(--primary);color:#fff;cursor:pointer;}
+input,button {
+  padding:10px;margin:6px 5px;border-radius:10px;border:1px solid #e2e8f0;
+}
+button {background:#2563eb;color:#fff;border:none;cursor:pointer;}
 
-.item {
-  background:var(--card);padding:12px;margin:8px 0;border-radius:12px;
-  display:flex;justify-content:space-between;transition:.3s;
+.error-box {
+  background:#fee2e2;color:#991b1b;padding:10px;border-radius:10px;
+  margin:10px 5px;display:none;justify-content:space-between;
 }
 
-.item.updated {border:2px solid #22c55e;}
+.item {
+  background:#fff;padding:14px;margin:10px 0;border-radius:12px;
+  border:1px solid #e2e8f0;display:flex;justify-content:space-between;
+}
 
-.controls {display:flex;gap:5px;}
+.item.updated {
+  border:2px solid #22c55e;
+  background:#f0fdf4;
+}
+
+.controls {display:flex;gap:6px;}
 
 .pagination {text-align:center;margin-top:10px;}
 
 .toast {
- position:fixed;bottom:20px;right:20px;padding:10px;border-radius:8px;color:#fff;display:none;
+  position:fixed;bottom:20px;right:20px;background:#22c55e;
+  color:#fff;padding:10px 15px;border-radius:8px;display:none;
 }
-.toast.success {background:#22c55e;}
-.toast.error {background:#ef4444;}
-
 </style>
 </head>
 
@@ -48,12 +53,17 @@ button {background:var(--primary);color:#fff;cursor:pointer;}
 <div class="container">
 
 <div class="header">
-<h2>CRUD Dashboard <span onclick="toggleMode()">🌓</span></h2>
-<div class="search-box">🔍<input id="search" onkeyup="searchItems()"></div>
+<h2>CRUD Dashboard</h2>
+<div class="search-box">🔍<input id="search" placeholder="Search..." onkeyup="searchItems()"></div>
 </div>
 
 <input id="name" placeholder="Enter item">
 <button onclick="saveItem()">Save</button>
+
+<div id="errorBox" class="error-box">
+  <span id="errorText"></span>
+  <button onclick="hideError()">OK</button>
+</div>
 
 <div id="list"></div>
 
@@ -70,12 +80,24 @@ button {background:var(--primary);color:#fff;cursor:pointer;}
 <script>
 let page=1,totalPages=1,editId=null,searchQuery='';
 
-function showToast(msg,type="success"){
+// TOAST
+function showToast(msg){
  let t=document.getElementById("toast");
- t.innerText=msg;t.className="toast "+type;t.style.display="block";
- setTimeout(()=>t.style.display="none",2500);
+ t.innerText=msg;
+ t.style.display="block";
+ setTimeout(()=>t.style.display="none",1500);
 }
 
+// ERROR
+function showError(msg){
+ document.getElementById("errorText").innerText=msg;
+ document.getElementById("errorBox").style.display="flex";
+}
+function hideError(){
+ document.getElementById("errorBox").style.display="none";
+}
+
+// LOAD
 async function load(){
  let res=await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
  let r=await res.json();
@@ -90,87 +112,97 @@ async function load(){
   let div=document.createElement('div');
   div.className="item";
   div.dataset.id=i.id;
+
   div.innerHTML=`${escapeHtml(i.name)}
    <div class="controls">
    <button onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')">Edit</button>
    <button onclick="deleteItem(${i.id},this)">Delete</button>
    </div>`;
+
   list.appendChild(div);
  });
 }
 
+// SEARCH
 function searchItems(){
  searchQuery=document.getElementById('search').value;
  page=1;
  load();
 }
 
+// SAVE
 async function saveItem(){
+ hideError();
+
  let name=document.getElementById('name').value;
- if(!name) return showToast("Enter value","error");
+ if(!name) return showError("Please enter value");
 
  if(!editId){
-  let list=document.getElementById('list');
-  let fake=document.createElement('div');
-  fake.className="item";
-  fake.style.opacity="0.5";
-  fake.innerText=name;
-  list.prepend(fake);
-
   let res=await fetch('/api/items',{
-   method:'POST',headers:{'Content-Type':'application/json'},
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
    body:JSON.stringify({name})
   });
 
   let d=await res.json();
-  if(!res.ok){ fake.remove(); return showToast(d.error,"error"); }
+  if(!res.ok) return showError(d.error);
 
   showToast("Added");
+  load();
+
  } else {
   let res=await fetch(`/api/items/${editId}`,{
-   method:'PUT',headers:{'Content-Type':'application/json'},
+   method:'PUT',
+   headers:{'Content-Type':'application/json'},
    body:JSON.stringify({name})
   });
 
   let d=await res.json();
-  if(!res.ok) return showToast(d.error,"error");
-
-  let row=document.querySelector(`[data-id='${editId}']`);
-  if(row){
-    row.classList.add("updated");
-    setTimeout(()=>row.classList.remove("updated"),1500);
-  }
+  if(!res.ok) return showError(d.error);
 
   showToast("Updated");
+
+  // 🔄 FULL REFRESH AFTER UPDATE
+  setTimeout(()=>location.reload(), 800);
+
   editId=null;
  }
 
  document.getElementById('name').value='';
- load();
 }
 
+// EDIT
 function editItem(id,name){
  document.getElementById('name').value=decodeURIComponent(name);
  editId=id;
 }
 
+// DELETE
 async function deleteItem(id,btn){
  let row=btn.closest('.item');
- row.style.opacity="0.3";
+ row.style.opacity="0.4";
 
  let res=await fetch(`/api/items/${id}`,{method:'DELETE'});
- if(!res.ok){ row.style.opacity="1"; return showToast("Delete failed","error"); }
 
- row.remove();
+ if(!res.ok){
+   row.style.opacity="1";
+   return showError("Delete failed");
+ }
+
  showToast("Deleted");
+
+ // 🔄 FULL REFRESH AFTER DELETE
+ setTimeout(()=>location.reload(), 800);
 }
 
+// PAGINATION
 function next(){ if(page<totalPages){page++;load();}}
 function prev(){ if(page>1){page--;load();}}
 
-function toggleMode(){ document.body.classList.toggle('light'); }
-
-function escapeHtml(t){ return t.replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// SAFE
+function escapeHtml(t){
+ return t.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
 
 load();
 </script>
