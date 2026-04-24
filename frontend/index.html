@@ -204,26 +204,23 @@ async function loadChart() {
   let res = await fetch('/api/stats/chart');
   let data = await res.json();
 
-  let labels = data.map(i => i.label);
-  let values = data.map(i => i.count);
-
   let ctx = document.getElementById('chart').getContext('2d');
 
   if (chart) chart.destroy();
 
   chart = new Chart(ctx, {
-    type: 'bar',
+    type: 'pie',
     data: {
-      labels: labels,
+      labels: data.labels,
       datasets: [{
-        label: 'Items by First Letter',
-        data: values
+        label: 'Total Records',
+        data: data.values
       }]
     }
   });
 }
 
-// SAFE HTML
+  // SAFE HTML
 function escapeHtml(text) {
   return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
