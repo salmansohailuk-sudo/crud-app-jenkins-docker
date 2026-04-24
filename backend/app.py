@@ -3,7 +3,20 @@ import pymysql
 import os
 import re
 
+# Rate limiting
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 app = Flask(__name__)
+
+# -----------------------------
+# RATE LIMIT CONFIG
+# -----------------------------
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per minute"]
+)
 
 # -----------------------------
 # DB CONNECTION
@@ -18,25 +31,21 @@ def get_connection():
     )
 
 # -----------------------------
-# INPUT VALIDATION (ANTI-INJECTION)
+# INPUT VALIDATION
 # -----------------------------
 def is_valid_name(name):
     if not name or len(name.strip()) == 0:
         return False
 
-    # block common SQL keywords / symbols
-    blacklist = [
-        "select", "insert", "delete", "drop",
-        "update", "--", ";", "/*", "*/", "xp_"
-    ]
+    # Block dangerous patterns
+    blacklist = ["select", "insert", "delete", "drop", "update", "--", ";", "/*", "*/"]
 
     name_lower = name.lower()
-
     for word in blacklist:
         if word in name_lower:
             return False
 
-    # allow only letters, numbers, spaces
+    # Allow only letters, numbers, spaces
     return re.match("^[a-zA-Z0-9 ]+$", name) is not None
 
 
@@ -44,6 +53,7 @@ def is_valid_name(name):
 # GET ITEMS (SEARCH + PAGINATION)
 # -----------------------------
 @app.route('/items', methods=['GET'])
+@limiter.limit("20 per minute")
 def get_items():
     try:
         page = int(request.args.get('page', 1))
@@ -81,22 +91,23 @@ def get_items():
 
 
 # -----------------------------
-# CREATE (NO DUPLICATES)
+# CREATE ITEM
 # -----------------------------
 @app.route('/items', methods=['POST'])
+@limiter.limit("10 per minute")
 def create_item():
     try:
         data = request.json
         name = data.get('name', '').strip()
 
-        # validation
+        # Validate input
         if not is_valid_name(name):
             return jsonify({"error": "Invalid input"}), 400
 
         conn = get_connection()
         cursor = conn.cursor()
 
-        # check duplicate
+        # Check duplicate
         cursor.execute("SELECT * FROM item WHERE name=%s", (name,))
         if cursor.fetchone():
             return jsonify({"error": "Duplicate entry not allowed"}), 400
@@ -112,21 +123,23 @@ def create_item():
 
 
 # -----------------------------
-# UPDATE (NO DUPLICATES)
+# UPDATE ITEM
 # -----------------------------
 @app.route('/items/<int:id>', methods=['PUT'])
+@limiter.limit("10 per minute")
 def update_item(id):
     try:
         data = request.json
         name = data.get('name', '').strip()
 
+        # Validate input
         if not is_valid_name(name):
             return jsonify({"error": "Invalid input"}), 400
 
         conn = get_connection()
         cursor = conn.cursor()
 
-        # check duplicate excluding current id
+        # Check duplicate (exclude current id)
         cursor.execute(
             "SELECT * FROM item WHERE name=%s AND id!=%s",
             (name, id)
@@ -148,9 +161,10 @@ def update_item(id):
 
 
 # -----------------------------
-# DELETE
+# DELETE ITEM
 # -----------------------------
 @app.route('/items/<int:id>', methods=['DELETE'])
+@limiter.limit("5 per minute")
 def delete_item(id):
     try:
         conn = get_connection()
@@ -161,6 +175,16 @@ def delete_item(id):
         return jsonify({"message": "deleted"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# -----------------------------
+# RATE LIMIT HANDLER
+# -----------------------------
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "Too many requests. Please slow down."
+    }), 429
 
 
 # -----------------------------
