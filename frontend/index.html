@@ -70,8 +70,12 @@ input:checked + .slider:before {transform:translateX(24px);}
   border:none;background:transparent;
   margin-left:6px;outline:none;color:var(--text);
 }
+.search-box i:last-child {
+  margin-left:10px;
+  cursor:pointer;
+}
 
-/* input */
+/* inputs */
 input,button {
   padding:10px;margin:6px 5px;
   border-radius:10px;border:1px solid var(--border);
@@ -87,13 +91,33 @@ button {
   padding:14px;margin:10px 0;
   border-radius:12px;border:1px solid var(--border);
   display:flex;justify-content:space-between;
+  align-items:center;
+  transition:0.3s;
 }
 
-.controls i {margin-left:10px;cursor:pointer;}
+/* ✨ highlight effect */
+.highlight {
+  animation:highlightFade 2s ease;
+  border:2px solid #22c55e;
+  background:#ecfdf5;
+}
+
+@keyframes highlightFade {
+  0% {background:#bbf7d0;}
+  100% {background:var(--bg);}
+}
+
+.controls i {
+  margin-left:10px;
+  cursor:pointer;
+}
 
 .confirm-box {
-  background:#fff7ed;padding:6px;border-radius:8px;
-  display:flex;gap:6px;
+  background:#fff7ed;
+  padding:6px;
+  border-radius:8px;
+  display:flex;
+  gap:6px;
 }
 
 /* messages */
@@ -120,6 +144,7 @@ button {
 
 <div class="header">
 <h2>✨ CRUD Dashboard</h2>
+
 <label class="switch">
 <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
 <span class="slider"></span>
@@ -129,6 +154,7 @@ button {
 <div class="search-box">
 <i class="fa fa-search"></i>
 <input id="search" placeholder="Search..." onkeyup="searchItems()">
+<i class="fa fa-sort" onclick="toggleSort()"></i>
 </div>
 
 <input id="name" placeholder="Enter item">
@@ -156,6 +182,8 @@ let page=1;
 let totalPages=1;
 let searchQuery='';
 let editId=null;
+let sortOrder='asc';
+let highlightId=null; // ✅ track edited row
 
 // THEME
 window.onload=()=>{
@@ -175,15 +203,14 @@ function toggleTheme(){
 
 // LOAD
 async function load(){
- let res=await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
+ let res=await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}&sort=${sortOrder}`);
  let r=await res.json();
 
  totalPages=r.pages;
 
- // ✅ FIX: auto-correct page if empty
- if(r.data.length === 0 && page > 1){
-   page--;        // go back one page
-   return load(); // reload again
+ if(r.data.length===0 && page>1){
+   page--;
+   return load();
  }
 
  document.getElementById("pageInfo").innerText=`Page ${page}/${totalPages}`;
@@ -203,21 +230,59 @@ function render(data){
  list.innerHTML='';
 
  data.forEach(i=>{
-  list.innerHTML+=`
-   <div class="item">
-    ${escapeHtml(i.name)}
-    <div class="controls" id="ctrl-${i.id}">
-      <i class="fa fa-pen" onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')"></i>
-      <i class="fa fa-trash" onclick="confirmUI(${i.id})"></i>
+  let div=document.createElement('div');
+  div.className="item";
+  div.dataset.id = i.id;
+
+  // apply highlight
+  if(i.id == highlightId){
+    div.classList.add("highlight");
+    setTimeout(()=>highlightId=null,2000);
+  }
+
+  div.innerHTML=`
+    <span>${escapeHtml(i.name)}</span>
+    <div class="controls">
+      <i class="fa fa-pen edit-btn" data-id="${i.id}" data-name="${escapeHtml(i.name)}"></i>
+      <i class="fa fa-trash delete-btn" data-id="${i.id}"></i>
     </div>
-   </div>
   `;
+
+  list.appendChild(div);
  });
+
+ // attach events
+ document.querySelectorAll('.edit-btn').forEach(btn=>{
+   btn.onclick = function(){
+     editItem(this.dataset.id, this.dataset.name);
+   }
+ });
+
+ document.querySelectorAll('.delete-btn').forEach(btn=>{
+   btn.onclick = function(){
+     confirmUI(this.dataset.id);
+   }
+ });
+
+ // auto scroll to highlight
+ if(highlightId){
+   let el = document.querySelector(`[data-id='${highlightId}']`);
+   if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
+ }
 }
 
-// CONFIRM
+// EDIT
+function editItem(id,name){
+ document.getElementById("name").value=name;
+ editId=id;
+ showSuccess("Editing...");
+}
+
+// CONFIRM DELETE
 function confirmUI(id){
- document.getElementById(`ctrl-${id}`).innerHTML=`
+ let ctrl=document.querySelector(`[data-id="${id}"] .controls`);
+
+ ctrl.innerHTML=`
   <div class="confirm-box">
     Delete?
     <button onclick="deleteItem(${id})">✔</button>
@@ -230,7 +295,7 @@ function confirmUI(id){
 async function deleteItem(id){
  await fetch(`/api/items/${id}`,{method:'DELETE'});
  showSuccess("Deleted");
- load(); // reload triggers fix
+ load();
 }
 
 // SAVE
@@ -261,6 +326,7 @@ async function saveItem(){
   let d=await res.json();
   if(!res.ok) return showError(d.error);
 
+  highlightId = editId; // ✅ mark for highlight
   showSuccess("Updated");
   editId=null;
  }
@@ -276,13 +342,17 @@ function searchItems(){
  load();
 }
 
+// SORT
+function toggleSort(){
+ sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+ page=1;
+ load();
+ showSuccess(sortOrder==='asc'?"Sorted A→Z":"Sorted Z→A");
+}
+
 // PAGINATION
-function next(){
- if(page<totalPages){page++;load();}
-}
-function prev(){
- if(page>1){page--;load();}
-}
+function next(){ if(page<totalPages){page++;load();} }
+function prev(){ if(page>1){page--;load();} }
 
 // MESSAGES
 function showSuccess(msg){
