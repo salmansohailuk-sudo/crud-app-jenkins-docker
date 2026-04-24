@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CRUD App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui; background:#0f172a; color:white; }
+    .container { max-width:600px; margin:auto; padding:20px; }
+    input, button { padding:10px; margin:5px; border-radius:8px; }
+    button { background:#3b82f6; color:white; }
+    .item { background:#1e293b; padding:10px; margin:5px; display:flex; justify-content:space-between; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>CRUD Dashboard</h1>
+  <input id="name" placeholder="Enter item"/>
+  <button onclick="add()">Add</button>
+  <div id="list"></div>
+</div>
+
+<script>
+async function load() {
+  let res = await fetch('/api/items');
+  let data = await res.json();
+  let list = document.getElementById('list');
+  list.innerHTML = '';
+  data.forEach(i => {
+    list.innerHTML += `<div class="item">${i.name}
+      <button onclick="del(${i.id})">❌</button></div>`;
+  });
+}
+
+async function add() {
+  let name = document.getElementById('name').value;
+  await fetch('/api/items', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name})
+  });
+  load();
+}
+
+async function del(id) {
+  await fetch(`/api/items/${id}`, {method:'DELETE'});
+  load();
+}
+
+load();
+</script>
+</body>
+</html>
