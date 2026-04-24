@@ -10,7 +10,7 @@ services:
     environment:
       DB_USER: admin
       DB_PASS: Cloud123
-      DB_HOST: database-1.cmtg0gcusv3u.us-east-1.rds.amazonaws.com
+      DB_HOST: database-1.cex0gqkkywrl.us-east-1.rds.amazonaws.com
       DB_NAME: cruddb
     ports:
       - "5000:5000"
