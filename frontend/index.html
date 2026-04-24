@@ -213,13 +213,12 @@ async function loadChart() {
     data: {
       labels: data.labels,
       datasets: [{
-        label: 'Total Records',
+        label: 'Item Distribution',
         data: data.values
       }]
     }
   });
 }
-
   // SAFE HTML
 function escapeHtml(text) {
   return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
