@@ -6,6 +6,8 @@
 
 <title>CRUD Dashboard</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 :root {
   --bg: #0f172a;
@@ -27,44 +29,11 @@ body {
 }
 
 .container {
-  max-width: 700px;
+  max-width: 600px;
   margin: auto;
   padding: 15px;
 }
 
-/* HEADER */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* SEARCH */
-.search-box {
-  display: flex;
-  align-items: center;
-  background: var(--card);
-  padding: 5px 10px;
-  border-radius: 8px;
-}
-
-.search-box input {
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--text);
-}
-
-/* ERROR BOX */
-.error {
-  background: #ef4444;
-  padding: 10px;
-  border-radius: 8px;
-  margin: 10px 0;
-  display: none;
-}
-
-/* INPUT */
 input, button {
   padding: 10px;
   margin: 5px;
@@ -98,13 +67,7 @@ button {
   margin-top: 10px;
 }
 
-/* MOBILE */
 @media (max-width: 600px) {
-  .header {
-    flex-direction: column;
-    gap: 10px;
-  }
-
   .item {
     flex-direction: column;
   }
@@ -113,38 +76,27 @@ button {
 </head>
 
 <body>
-
 <div class="container">
 
-  <!-- HEADER -->
-  <div class="header">
-    <h2>
-      CRUD Dashboard
-      <span onclick="toggleMode()" style="cursor:pointer;">🌓</span>
-    </h2>
+<h2>
+CRUD Dashboard
+<span onclick="toggleMode()" style="float:right;cursor:pointer;">🌓</span>
+</h2>
 
-    <div class="search-box">
-      🔍
-      <input id="search" placeholder="Search..." onkeyup="searchItems()">
-    </div>
-  </div>
+<input id="search" placeholder="Search..." onkeyup="searchItems()">
 
-  <!-- ERROR MESSAGE -->
-  <div id="errorBox" class="error"></div>
+<input id="name" placeholder="Enter item">
+<button onclick="saveItem()">Save</button>
 
-  <!-- INPUT -->
-  <input id="name" placeholder="Enter item">
-  <button onclick="saveItem()">Save</button>
+<div id="list"></div>
 
-  <!-- LIST -->
-  <div id="list"></div>
+<div class="pagination">
+  <button onclick="prev()">Prev</button>
+  <span id="pageInfo"></span>
+  <button onclick="next()">Next</button>
+</div>
 
-  <!-- PAGINATION -->
-  <div class="pagination">
-    <button onclick="prev()">Prev</button>
-    <span id="pageInfo"></span>
-    <button onclick="next()">Next</button>
-  </div>
+<canvas id="chart" height="200"></canvas>
 
 </div>
 
@@ -153,17 +105,7 @@ let page = 1;
 let totalPages = 1;
 let editId = null;
 let searchQuery = '';
-
-// SHOW ERROR
-function showError(message) {
-  const box = document.getElementById('errorBox');
-  box.innerText = message;
-  box.style.display = 'block';
-
-  setTimeout(() => {
-    box.style.display = 'none';
-  }, 3000);
-}
+let chart;
 
 // LOAD DATA
 async function load() {
@@ -189,6 +131,8 @@ async function load() {
       </div>
     `;
   });
+
+  loadChart();
 }
 
 // SEARCH
@@ -198,37 +142,25 @@ function searchItems() {
   load();
 }
 
-// SAVE (HANDLE ERRORS HERE)
+// SAVE
 async function saveItem() {
   let name = document.getElementById('name').value;
 
-  if (!name) {
-    showError("Please enter a value");
-    return;
-  }
-
-  let response;
+  if (!name) return alert("Enter name");
 
   if (editId) {
-    response = await fetch(`/api/items/${editId}`, {
+    await fetch(`/api/items/${editId}`, {
       method:'PUT',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
     editId = null;
   } else {
-    response = await fetch('/api/items', {
+    await fetch('/api/items', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
-  }
-
-  let result = await response.json();
-
-  if (!response.ok) {
-    showError(result.error || "Something went wrong");
-    return;
   }
 
   document.getElementById('name').value = '';
@@ -243,14 +175,7 @@ function editItem(id, name) {
 
 // DELETE
 async function deleteItem(id) {
-  let response = await fetch(`/api/items/${id}`, {method:'DELETE'});
-
-  if (!response.ok) {
-    let result = await response.json();
-    showError(result.error || "Delete failed");
-    return;
-  }
-
+  await fetch(`/api/items/${id}`, {method:'DELETE'});
   load();
 }
 
@@ -274,12 +199,33 @@ function toggleMode() {
   document.body.classList.toggle('light');
 }
 
-// SAFE HTML
+// CHART
+async function loadChart() {
+  let res = await fetch('/api/stats/chart');
+  let data = await res.json();
+
+  let ctx = document.getElementById('chart').getContext('2d');
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: 'Total Records',
+        label: 'Item Distribution',
+        data: data.values
+      }]
+    }
+  });
+}
+
+  // SAFE HTML
 function escapeHtml(text) {
   return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// INIT
 load();
 </script>
 
