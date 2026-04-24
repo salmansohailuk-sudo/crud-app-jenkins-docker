@@ -4,6 +4,9 @@ import os
 
 app = Flask(__name__)
 
+
+
+
 # Function to create DB connection
 def get_connection():
     return pymysql.connect(
@@ -17,12 +20,16 @@ def get_connection():
 # READ all items
 @app.route('/items', methods=['GET'])
 def get_items():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM item")
-    data = cursor.fetchall()
-    conn.close()
-    return jsonify(data)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM item")
+        data = cursor.fetchall()
+        conn.close()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        
 
 # CREATE item
 @app.route('/items', methods=['POST'])
