@@ -1,8 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>CRUD Dashboard</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+<style>
+:root {
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --text:#0f172a;
+  --border:#e2e8f0;
+}
+
+.dark {
+  --bg:#0f172a;
+  --card:#1e293b;
+  --text:#e2e8f0;
+  --border:#334155;
+}
+
+body {
+  font-family:system-ui;
+  background:var(--bg);
+  color:var(--text);
+  margin:0;
+  transition:0.3s;
+}
+
+.container {
+  max-width:720px;
+  margin:40px auto;
+  padding:25px;
+  background:var(--card);
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.08);
+}
+
+.header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* toggle */
+.switch {
+  position:relative;
+  width:50px;
+  height:26px;
+}
+.switch input {display:none;}
+.slider {
+  position:absolute;
+  background:#ccc;
+  border-radius:50px;
+  top:0;bottom:0;left:0;right:0;
+  cursor:pointer;
+}
+.slider:before {
+  content:"";
+  position:absolute;
+  height:20px;width:20px;
+  left:3px;top:3px;
+  background:#fff;
+  border-radius:50%;
+  transition:0.3s;
+}
+input:checked + .slider {background:#2563eb;}
+input:checked + .slider:before {transform:translateX(24px);}
+
+/* search */
+.search-box {
+  display:flex;
+  align-items:center;
+  background:var(--bg);
+  border:1px solid var(--border);
+  padding:8px 12px;
+  border-radius:10px;
+}
+.search-box input {
+  border:none;
+  background:transparent;
+  outline:none;
+  margin-left:6px;
+  color:var(--text);
+}
+
+/* inputs */
+input,button {
+  padding:10px;
+  margin:6px 5px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--card);
+  color:var(--text);
+}
+
+button {
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  cursor:pointer;
+}
+
+/* item */
+.item {
+  background:var(--bg);
+  padding:14px;
+  margin:10px 0;
+  border-radius:12px;
+  border:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.controls i {
+  margin-left:12px;
+  cursor:pointer;
+}
+
+/* confirm */
+.confirm-box {
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  padding:8px;
+  border-radius:8px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+/* message */
+.success-box {
+  background:#dcfce7;
+  padding:10px;
+  border-radius:10px;
+  margin:10px 0;
+  display:none;
+}
+
+.error-box {
+  background:#fee2e2;
+  padding:10px;
+  border-radius:10px;
+  margin:10px 0;
+  display:none;
+  justify-content:space-between;
+}
+
+.no-data {
+  text-align:center;
+  padding:15px;
+  color:#64748b;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+<h2>✨ CRUD Dashboard</h2>
+
+<label class="switch">
+<input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+<span class="slider"></span>
+</label>
+
+</div>
+
+<div class="search-box">
+<i class="fa fa-search"></i>
+<input id="search" placeholder="Search..." onkeyup="searchItems()">
+</div>
+
+<input id="name" placeholder="Enter item">
+<button onclick="saveItem()">Save</button>
+
+<div id="successBox" class="success-box"></div>
+
+<div id="errorBox" class="error-box">
+<span id="errorText"></span>
+<button onclick="hideError()">OK</button>
+</div>
+
+<div id="list"></div>
+
+</div>
+
 <script>
 let editId=null;
 let searchQuery='';
-let lastData=[];   // ✅ store previous valid data
-let lastPageInfo='';
+let lastData=[];
+
+// THEME
+window.onload = () => {
+ let saved=localStorage.getItem("theme");
+ if(saved==="dark"){
+  document.body.classList.add("dark");
+  document.getElementById("themeToggle").checked=true;
+ }
+ load();
+};
+
+function toggleTheme(){
+ document.body.classList.toggle("dark");
+ localStorage.setItem("theme",
+   document.body.classList.contains("dark") ? "dark":"light");
+}
 
 // SUCCESS
 function showSuccess(msg){
@@ -26,21 +236,16 @@ async function load(){
  let res=await fetch(`/api/items?search=${searchQuery}`);
  let r=await res.json();
 
- let list=document.getElementById('list');
-
- // ❗ NO RESULTS CASE
- if(r.data.length === 0 && searchQuery){
-   showNoDataMessage();
+ if(r.data.length===0 && searchQuery){
+   showNoData();
    return;
  }
 
- // ✅ SAVE LAST VALID DATA
- lastData = r.data;
-
+ lastData=r.data;
  renderList(r.data);
 }
 
-// RENDER LIST
+// RENDER
 function renderList(data){
  let list=document.getElementById('list');
  list.innerHTML='';
@@ -61,17 +266,11 @@ function renderList(data){
  });
 }
 
-// ❗ SHOW MESSAGE BUT KEEP OLD DATA
-function showNoDataMessage(){
+// NO DATA
+function showNoData(){
  let list=document.getElementById('list');
 
- list.innerHTML = `
-   <div style="text-align:center;padding:20px;color:#64748b;">
-     ❌ No records found
-   </div>
- ` + list.innerHTML;
-
- // restore old list below message
+ list.innerHTML=`<div class="no-data">❌ No records found</div>`;
  renderList(lastData);
 }
 
@@ -150,7 +349,7 @@ function searchItems(){
 function escapeHtml(t){
  return t.replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
-
-// INIT
-load();
 </script>
+
+</body>
+</html>
