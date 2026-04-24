@@ -3,108 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>CRUD Dashboard</title>
 
 <style>
 :root {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --text: #e2e8f0;
-  --primary: #3b82f6;
+  --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --primary:#3b82f6;
 }
-
 .light {
-  --bg: #f8fafc;
-  --card: #ffffff;
-  --text: #0f172a;
+  --bg:#f8fafc; --card:#fff; --text:#0f172a;
 }
+body {font-family:system-ui;background:var(--bg);color:var(--text);margin:0;}
+.container {max-width:650px;margin:auto;padding:15px;}
 
-body {
-  font-family: system-ui;
-  background: var(--bg);
-  color: var(--text);
-  margin: 0;
-}
+.header {display:flex;justify-content:space-between;align-items:center;}
 
-.container {
-  max-width: 650px;
-  margin: auto;
-  padding: 15px;
-}
+.search-box {display:flex;align-items:center;background:var(--card);padding:6px;border-radius:10px;}
+.search-box input {border:none;background:transparent;color:var(--text);margin-left:5px;}
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  background: var(--card);
-  padding: 6px 10px;
-  border-radius: 10px;
-}
-
-.search-box input {
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--text);
-  margin-left: 5px;
-}
-
-input, button {
-  padding: 10px;
-  margin: 5px;
-  border-radius: 10px;
-  border: none;
-}
-
-button {
-  background: var(--primary);
-  color: white;
-  cursor: pointer;
-}
+input,button {padding:10px;margin:5px;border:none;border-radius:10px;}
+button {background:var(--primary);color:#fff;cursor:pointer;}
 
 .item {
-  background: var(--card);
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 12px;
-  display: flex;
-  justify-content: space-between;
-  transition: 0.3s;
+  background:var(--card);padding:12px;margin:8px 0;border-radius:12px;
+  display:flex;justify-content:space-between;transition:.3s;
 }
 
-/* highlight edited */
-.item.updated {
-  border: 2px solid #22c55e;
-  box-shadow: 0 0 10px rgba(34,197,94,0.5);
-}
+.item.updated {border:2px solid #22c55e;}
 
-.controls {
-  display: flex;
-  gap: 5px;
-}
+.controls {display:flex;gap:5px;}
+
+.pagination {text-align:center;margin-top:10px;}
 
 .toast {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  padding: 10px;
-  border-radius: 8px;
-  color: white;
-  display: none;
+ position:fixed;bottom:20px;right:20px;padding:10px;border-radius:8px;color:#fff;display:none;
 }
+.toast.success {background:#22c55e;}
+.toast.error {background:#ef4444;}
 
-.toast.success { background: #22c55e; }
-.toast.error { background: #ef4444; }
-
-@media (max-width:600px){
-  .header { flex-direction: column; }
-}
 </style>
 </head>
 
@@ -113,15 +48,8 @@ button {
 <div class="container">
 
 <div class="header">
-  <h2>
-    CRUD Dashboard
-    <span onclick="toggleMode()">🌓</span>
-  </h2>
-
-  <div class="search-box">
-    🔍
-    <input id="search" placeholder="Search..." onkeyup="searchItems()">
-  </div>
+<h2>CRUD Dashboard <span onclick="toggleMode()">🌓</span></h2>
+<div class="search-box">🔍<input id="search" onkeyup="searchItems()"></div>
 </div>
 
 <input id="name" placeholder="Enter item">
@@ -129,152 +57,120 @@ button {
 
 <div id="list"></div>
 
+<div class="pagination">
+<button onclick="prev()">Prev</button>
+<span id="pageInfo"></span>
+<button onclick="next()">Next</button>
+</div>
+
 </div>
 
 <div id="toast" class="toast"></div>
 
 <script>
-let editId = null;
-let searchQuery = '';
+let page=1,totalPages=1,editId=null,searchQuery='';
 
-function showToast(msg, type="success") {
-  let t = document.getElementById("toast");
-  t.innerText = msg;
-  t.className = "toast " + type;
-  t.style.display = "block";
-  setTimeout(()=>t.style.display="none", 2500);
+function showToast(msg,type="success"){
+ let t=document.getElementById("toast");
+ t.innerText=msg;t.className="toast "+type;t.style.display="block";
+ setTimeout(()=>t.style.display="none",2500);
 }
 
-// LOAD
-async function load() {
-  let res = await fetch(`/api/items?search=${searchQuery}`);
-  let data = await res.json();
+async function load(){
+ let res=await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
+ let r=await res.json();
 
-  let list = document.getElementById('list');
-  list.innerHTML = '';
+ totalPages=r.pages;
+ document.getElementById('pageInfo').innerText=`Page ${page}/${totalPages}`;
 
-  data.data.forEach(i => {
-    list.appendChild(createItemElement(i));
-  });
+ let list=document.getElementById('list');
+ list.innerHTML='';
+
+ r.data.forEach(i=>{
+  let div=document.createElement('div');
+  div.className="item";
+  div.dataset.id=i.id;
+  div.innerHTML=`${escapeHtml(i.name)}
+   <div class="controls">
+   <button onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')">Edit</button>
+   <button onclick="deleteItem(${i.id},this)">Delete</button>
+   </div>`;
+  list.appendChild(div);
+ });
 }
 
-// CREATE DOM ITEM
-function createItemElement(i) {
-  let div = document.createElement('div');
-  div.className = "item";
-  div.setAttribute("data-id", i.id);
-
-  div.innerHTML = `
-    ${escapeHtml(i.name)}
-    <div class="controls">
-      <button onclick="editItem(${i.id}, '${encodeURIComponent(i.name)}')">Edit</button>
-      <button onclick="deleteItem(${i.id}, this)">Delete</button>
-    </div>
-  `;
-  return div;
-}
-
-// OPTIMISTIC SAVE
-async function saveItem() {
-  let name = document.getElementById('name').value;
-  if (!name) return showToast("Enter value","error");
-
-  // CREATE
-  if (!editId) {
-    let tempId = "temp-" + Date.now();
-
-    // show instantly
-    let fakeItem = {id: tempId, name};
-    let list = document.getElementById('list');
-    let el = createItemElement(fakeItem);
-    el.style.opacity = "0.5";
-    list.prepend(el);
-
-    // API call
-    let res = await fetch('/api/items', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name})
-    });
-
-    let data = await res.json();
-
-    if (!res.ok) {
-      el.remove(); // rollback
-      return showToast(data.error,"error");
-    }
-
-    showToast("Added");
-
-    load(); // sync
-
-  } else {
-    // UPDATE (highlight row)
-    let res = await fetch(`/api/items/${editId}`, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name})
-    });
-
-    let data = await res.json();
-
-    if (!res.ok) return showToast(data.error,"error");
-
-    // highlight updated row
-    let row = document.querySelector(`[data-id='${editId}']`);
-    if (row) {
-      row.classList.add("updated");
-      setTimeout(()=>row.classList.remove("updated"), 1500);
-    }
-
-    showToast("Updated");
-    editId = null;
-    load();
-  }
-
-  document.getElementById('name').value = '';
-}
-
-// EDIT
-function editItem(id, name) {
-  document.getElementById('name').value = decodeURIComponent(name);
-  editId = id;
-}
-
-// DELETE (optimistic)
-async function deleteItem(id, btn) {
-  let row = btn.closest('.item');
-
-  // remove instantly
-  row.style.opacity = "0.3";
-
-  let res = await fetch(`/api/items/${id}`, {method:'DELETE'});
-
-  if (!res.ok) {
-    row.style.opacity = "1"; // rollback
-    let d = await res.json();
-    return showToast(d.error,"error");
-  }
-
-  row.remove();
-  showToast("Deleted");
-}
-
-// SEARCH
 function searchItems(){
-  searchQuery = document.getElementById('search').value;
-  load();
+ searchQuery=document.getElementById('search').value;
+ page=1;
+ load();
 }
 
-// THEME
-function toggleMode(){
-  document.body.classList.toggle('light');
+async function saveItem(){
+ let name=document.getElementById('name').value;
+ if(!name) return showToast("Enter value","error");
+
+ if(!editId){
+  let list=document.getElementById('list');
+  let fake=document.createElement('div');
+  fake.className="item";
+  fake.style.opacity="0.5";
+  fake.innerText=name;
+  list.prepend(fake);
+
+  let res=await fetch('/api/items',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({name})
+  });
+
+  let d=await res.json();
+  if(!res.ok){ fake.remove(); return showToast(d.error,"error"); }
+
+  showToast("Added");
+ } else {
+  let res=await fetch(`/api/items/${editId}`,{
+   method:'PUT',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({name})
+  });
+
+  let d=await res.json();
+  if(!res.ok) return showToast(d.error,"error");
+
+  let row=document.querySelector(`[data-id='${editId}']`);
+  if(row){
+    row.classList.add("updated");
+    setTimeout(()=>row.classList.remove("updated"),1500);
+  }
+
+  showToast("Updated");
+  editId=null;
+ }
+
+ document.getElementById('name').value='';
+ load();
 }
 
-// SAFE
-function escapeHtml(t){
-  return t.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function editItem(id,name){
+ document.getElementById('name').value=decodeURIComponent(name);
+ editId=id;
 }
+
+async function deleteItem(id,btn){
+ let row=btn.closest('.item');
+ row.style.opacity="0.3";
+
+ let res=await fetch(`/api/items/${id}`,{method:'DELETE'});
+ if(!res.ok){ row.style.opacity="1"; return showToast("Delete failed","error"); }
+
+ row.remove();
+ showToast("Deleted");
+}
+
+function next(){ if(page<totalPages){page++;load();}}
+function prev(){ if(page>1){page--;load();}}
+
+function toggleMode(){ document.body.classList.toggle('light'); }
+
+function escapeHtml(t){ return t.replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 load();
 </script>
