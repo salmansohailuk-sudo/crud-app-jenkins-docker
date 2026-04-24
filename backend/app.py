@@ -24,16 +24,23 @@ def get_items():
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 5))
         search = request.args.get('search', '')
+        sort = request.args.get('sort', 'asc')
 
         offset = (page - 1) * limit
+
+        order = "ASC" if sort.lower() == "asc" else "DESC"
 
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute(
-            "SELECT * FROM item WHERE name LIKE %s ORDER BY id DESC LIMIT %s OFFSET %s",
-            (f"%{search}%", limit, offset)
-        )
+        query = f"""
+            SELECT * FROM item
+            WHERE name LIKE %s
+            ORDER BY name {order}
+            LIMIT %s OFFSET %s
+        """
+
+        cursor.execute(query, (f"%{search}%", limit, offset))
         data = cursor.fetchall()
 
         cursor.execute(
@@ -51,6 +58,8 @@ def get_items():
             "pages": (total + limit - 1) // limit
         })
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
