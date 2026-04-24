@@ -15,7 +15,6 @@
   --text:#0f172a;
   --border:#e2e8f0;
 }
-
 .dark {
   --bg:#0f172a;
   --card:#1e293b;
@@ -28,7 +27,6 @@ body {
   background:var(--bg);
   color:var(--text);
   margin:0;
-  transition:0.3s;
 }
 
 .container {
@@ -47,26 +45,15 @@ body {
 }
 
 /* toggle */
-.switch {
-  position:relative;
-  width:50px;
-  height:26px;
-}
+.switch {width:50px;height:26px;position:relative;}
 .switch input {display:none;}
 .slider {
-  position:absolute;
-  background:#ccc;
-  border-radius:50px;
-  top:0;bottom:0;left:0;right:0;
-  cursor:pointer;
+  position:absolute;background:#ccc;border-radius:50px;
+  top:0;bottom:0;left:0;right:0;cursor:pointer;
 }
 .slider:before {
-  content:"";
-  position:absolute;
-  height:20px;width:20px;
-  left:3px;top:3px;
-  background:#fff;
-  border-radius:50%;
+  content:"";position:absolute;height:20px;width:20px;
+  left:3px;top:3px;background:#fff;border-radius:50%;
   transition:0.3s;
 }
 input:checked + .slider {background:#2563eb;}
@@ -74,88 +61,55 @@ input:checked + .slider:before {transform:translateX(24px);}
 
 /* search */
 .search-box {
-  display:flex;
-  align-items:center;
+  display:flex;align-items:center;
   background:var(--bg);
   border:1px solid var(--border);
-  padding:8px 12px;
-  border-radius:10px;
+  padding:8px;border-radius:10px;
 }
 .search-box input {
-  border:none;
-  background:transparent;
-  outline:none;
-  margin-left:6px;
-  color:var(--text);
+  border:none;background:transparent;
+  margin-left:6px;outline:none;color:var(--text);
 }
 
-/* inputs */
+/* input */
 input,button {
-  padding:10px;
-  margin:6px 5px;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:var(--card);
-  color:var(--text);
+  padding:10px;margin:6px 5px;
+  border-radius:10px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);
 }
-
 button {
-  background:#2563eb;
-  color:#fff;
-  border:none;
-  cursor:pointer;
+  background:#2563eb;color:white;border:none;
 }
 
-/* item */
+/* items */
 .item {
   background:var(--bg);
-  padding:14px;
-  margin:10px 0;
-  border-radius:12px;
-  border:1px solid var(--border);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+  padding:14px;margin:10px 0;
+  border-radius:12px;border:1px solid var(--border);
+  display:flex;justify-content:space-between;
 }
 
-.controls i {
-  margin-left:12px;
-  cursor:pointer;
-}
+.controls i {margin-left:10px;cursor:pointer;}
 
-/* confirm */
 .confirm-box {
-  background:#fff7ed;
-  border:1px solid #fed7aa;
-  padding:8px;
-  border-radius:8px;
-  display:flex;
-  gap:8px;
-  align-items:center;
+  background:#fff7ed;padding:6px;border-radius:8px;
+  display:flex;gap:6px;
 }
 
-/* message */
-.success-box {
-  background:#dcfce7;
-  padding:10px;
-  border-radius:10px;
-  margin:10px 0;
-  display:none;
-}
-
-.error-box {
-  background:#fee2e2;
-  padding:10px;
-  border-radius:10px;
-  margin:10px 0;
-  display:none;
-  justify-content:space-between;
-}
+/* messages */
+.success-box {background:#dcfce7;padding:10px;border-radius:10px;display:none;}
+.error-box {background:#fee2e2;padding:10px;border-radius:10px;display:none;justify-content:space-between;}
 
 .no-data {
   text-align:center;
-  padding:15px;
+  padding:10px;
   color:#64748b;
+}
+
+/* pagination */
+.pagination {
+  text-align:center;
+  margin-top:15px;
 }
 </style>
 </head>
@@ -166,12 +120,10 @@ button {
 
 <div class="header">
 <h2>✨ CRUD Dashboard</h2>
-
 <label class="switch">
 <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
 <span class="slider"></span>
 </label>
-
 </div>
 
 <div class="search-box">
@@ -191,17 +143,25 @@ button {
 
 <div id="list"></div>
 
+<div class="pagination">
+<button onclick="prev()">Prev</button>
+<span id="pageInfo"></span>
+<button onclick="next()">Next</button>
+</div>
+
 </div>
 
 <script>
-let editId=null;
+let page=1;
+let totalPages=1;
 let searchQuery='';
+let editId=null;
 let lastData=[];
 
 // THEME
-window.onload = () => {
- let saved=localStorage.getItem("theme");
- if(saved==="dark"){
+window.onload=()=>{
+ let t=localStorage.getItem("theme");
+ if(t==="dark"){
   document.body.classList.add("dark");
   document.getElementById("themeToggle").checked=true;
  }
@@ -211,30 +171,17 @@ window.onload = () => {
 function toggleTheme(){
  document.body.classList.toggle("dark");
  localStorage.setItem("theme",
-   document.body.classList.contains("dark") ? "dark":"light");
-}
-
-// SUCCESS
-function showSuccess(msg){
- let b=document.getElementById("successBox");
- b.innerText=msg;
- b.style.display="block";
- setTimeout(()=>b.style.display="none",2000);
-}
-
-// ERROR
-function showError(msg){
- document.getElementById("errorText").innerText=msg;
- document.getElementById("errorBox").style.display="flex";
-}
-function hideError(){
- document.getElementById("errorBox").style.display="none";
+   document.body.classList.contains("dark")?"dark":"light");
 }
 
 // LOAD
 async function load(){
- let res=await fetch(`/api/items?search=${searchQuery}`);
+ let res=await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
  let r=await res.json();
+
+ totalPages=r.pages;
+
+ document.getElementById("pageInfo").innerText=`Page ${page}/${totalPages}`;
 
  if(r.data.length===0 && searchQuery){
    showNoData();
@@ -242,56 +189,48 @@ async function load(){
  }
 
  lastData=r.data;
- renderList(r.data);
+ render(r.data);
 }
 
 // RENDER
-function renderList(data){
- let list=document.getElementById('list');
+function render(data){
+ let list=document.getElementById("list");
  list.innerHTML='';
 
  data.forEach(i=>{
-  let div=document.createElement('div');
-  div.className="item";
-
-  div.innerHTML=`
-    <span>${escapeHtml(i.name)}</span>
+  list.innerHTML+=`
+   <div class="item">
+    ${escapeHtml(i.name)}
     <div class="controls" id="ctrl-${i.id}">
       <i class="fa fa-pen" onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')"></i>
-      <i class="fa fa-trash" onclick="showConfirm(${i.id})"></i>
+      <i class="fa fa-trash" onclick="confirmUI(${i.id})"></i>
     </div>
+   </div>
   `;
-
-  list.appendChild(div);
  });
 }
 
 // NO DATA
 function showNoData(){
- let list=document.getElementById('list');
-
- list.innerHTML=`<div class="no-data">❌ No records found</div>`;
- renderList(lastData);
+ render(lastData);
+ let list=document.getElementById("list");
+ list.innerHTML=`<div class="no-data">❌ No records found</div>` + list.innerHTML;
 }
 
 // CONFIRM
-function showConfirm(id){
- let ctrl=document.getElementById(`ctrl-${id}`);
-
- ctrl.innerHTML=`
-   <div class="confirm-box">
-     Delete?
-     <button onclick="deleteItem(${id})">✔</button>
-     <button onclick="load()">✖</button>
-   </div>
+function confirmUI(id){
+ document.getElementById(`ctrl-${id}`).innerHTML=`
+  <div class="confirm-box">
+    Delete?
+    <button onclick="deleteItem(${id})">✔</button>
+    <button onclick="load()">✖</button>
+  </div>
  `;
 }
 
 // DELETE
 async function deleteItem(id){
- let res=await fetch(`/api/items/${id}`,{method:'DELETE'});
- if(!res.ok) return showError("Delete failed");
-
+ await fetch(`/api/items/${id}`,{method:'DELETE'});
  showSuccess("Deleted");
  load();
 }
@@ -299,7 +238,7 @@ async function deleteItem(id){
 // SAVE
 async function saveItem(){
  hideError();
- let name=document.getElementById('name').value;
+ let name=document.getElementById("name").value;
 
  if(!name) return showError("Enter value");
 
@@ -314,7 +253,6 @@ async function saveItem(){
   if(!res.ok) return showError(d.error);
 
   showSuccess("Added");
-
  } else {
   let res=await fetch(`/api/items/${editId}`,{
    method:'PUT',
@@ -329,20 +267,37 @@ async function saveItem(){
   editId=null;
  }
 
- document.getElementById('name').value='';
+ document.getElementById("name").value='';
  load();
-}
-
-// EDIT
-function editItem(id,name){
- document.getElementById('name').value=decodeURIComponent(name);
- editId=id;
 }
 
 // SEARCH
 function searchItems(){
- searchQuery=document.getElementById('search').value;
+ searchQuery=document.getElementById("search").value;
+ page=1;
  load();
+}
+
+// PAGINATION
+function next(){
+ if(page<totalPages){page++;load();}
+}
+function prev(){
+ if(page>1){page--;load();}
+}
+
+// MESSAGES
+function showSuccess(msg){
+ let b=document.getElementById("successBox");
+ b.innerText=msg;b.style.display="block";
+ setTimeout(()=>b.style.display="none",2000);
+}
+function showError(msg){
+ document.getElementById("errorText").innerText=msg;
+ document.getElementById("errorBox").style.display="flex";
+}
+function hideError(){
+ document.getElementById("errorBox").style.display="none";
 }
 
 // SAFE
