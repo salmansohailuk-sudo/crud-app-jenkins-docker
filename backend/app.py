@@ -1,26 +1,10 @@
 from flask import Flask, request, jsonify
 import pymysql
 import os
-import re
-
-# Rate limiting
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
-# -----------------------------
-# RATE LIMIT CONFIG
-# -----------------------------
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per minute"]
-)
-
-# -----------------------------
-# DB CONNECTION
-# -----------------------------
+# DB connection
 def get_connection():
     return pymysql.connect(
         host=os.getenv("DB_HOST"),
@@ -31,29 +15,9 @@ def get_connection():
     )
 
 # -----------------------------
-# INPUT VALIDATION
-# -----------------------------
-def is_valid_name(name):
-    if not name or len(name.strip()) == 0:
-        return False
-
-    # Block dangerous patterns
-    blacklist = ["select", "insert", "delete", "drop", "update", "--", ";", "/*", "*/"]
-
-    name_lower = name.lower()
-    for word in blacklist:
-        if word in name_lower:
-            return False
-
-    # Allow only letters, numbers, spaces
-    return re.match("^[a-zA-Z0-9 ]+$", name) is not None
-
-
-# -----------------------------
 # GET ITEMS (SEARCH + PAGINATION)
 # -----------------------------
 @app.route('/items', methods=['GET'])
-@limiter.limit("20 per minute")
 def get_items():
     try:
         page = int(request.args.get('page', 1))
@@ -91,80 +55,43 @@ def get_items():
 
 
 # -----------------------------
-# CREATE ITEM
+# CREATE
 # -----------------------------
 @app.route('/items', methods=['POST'])
-@limiter.limit("10 per minute")
 def create_item():
     try:
         data = request.json
-        name = data.get('name', '').strip()
-
-        # Validate input
-        if not is_valid_name(name):
-            return jsonify({"error": "Invalid input"}), 400
-
         conn = get_connection()
         cursor = conn.cursor()
-
-        # Check duplicate
-        cursor.execute("SELECT * FROM item WHERE name=%s", (name,))
-        if cursor.fetchone():
-            return jsonify({"error": "Duplicate entry not allowed"}), 400
-
-        cursor.execute("INSERT INTO item (name) VALUES (%s)", (name,))
+        cursor.execute("INSERT INTO item (name) VALUES (%s)", (data['name'],))
         conn.commit()
         conn.close()
-
         return jsonify({"message": "created"})
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------
-# UPDATE ITEM
+# UPDATE
 # -----------------------------
 @app.route('/items/<int:id>', methods=['PUT'])
-@limiter.limit("10 per minute")
 def update_item(id):
     try:
         data = request.json
-        name = data.get('name', '').strip()
-
-        # Validate input
-        if not is_valid_name(name):
-            return jsonify({"error": "Invalid input"}), 400
-
         conn = get_connection()
         cursor = conn.cursor()
-
-        # Check duplicate (exclude current id)
-        cursor.execute(
-            "SELECT * FROM item WHERE name=%s AND id!=%s",
-            (name, id)
-        )
-        if cursor.fetchone():
-            return jsonify({"error": "Duplicate entry not allowed"}), 400
-
-        cursor.execute(
-            "UPDATE item SET name=%s WHERE id=%s",
-            (name, id)
-        )
+        cursor.execute("UPDATE item SET name=%s WHERE id=%s", (data['name'], id))
         conn.commit()
         conn.close()
-
         return jsonify({"message": "updated"})
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------
-# DELETE ITEM
+# DELETE
 # -----------------------------
 @app.route('/items/<int:id>', methods=['DELETE'])
-@limiter.limit("5 per minute")
 def delete_item(id):
     try:
         conn = get_connection()
@@ -178,13 +105,45 @@ def delete_item(id):
 
 
 # -----------------------------
-# RATE LIMIT HANDLER
+# CHART STATS
 # -----------------------------
-@app.errorhandler(429)
-def ratelimit_handler(e):
-    return jsonify({
-        "error": "Too many requests. Please slow down."
-    }), 429
+# -----------------------------
+# PIE CHART STATS (TOTAL RECORDS)
+# -----------------------------
+# -----------------------------
+# PIE CHART (MEANINGFUL BREAKDOWN)
+# -----------------------------
+@app.route('/stats/chart', methods=['GET'])
+def chart_stats():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Group data: A vs Others
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN LOWER(name) LIKE 'a%%' THEN 'Starts with A'
+                    ELSE 'Others'
+                END as label,
+                COUNT(*) as count
+            FROM item
+            GROUP BY label
+        """)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        labels = [row['label'] for row in rows]
+        values = [row['count'] for row in rows]
+
+        return jsonify({
+            "labels": labels,
+            "values": values
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------
