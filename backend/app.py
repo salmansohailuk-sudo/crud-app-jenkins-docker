@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 
-# Create DB connection
+# DB connection
 def get_connection():
     return pymysql.connect(
         host=os.getenv("DB_HOST"),
@@ -15,23 +15,47 @@ def get_connection():
     )
 
 # -----------------------------
-# GET ALL ITEMS
+# GET ITEMS (SEARCH + PAGINATION)
 # -----------------------------
 @app.route('/items', methods=['GET'])
 def get_items():
     try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 5))
+        search = request.args.get('search', '')
+
+        offset = (page - 1) * limit
+
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM item")
+
+        cursor.execute(
+            "SELECT * FROM item WHERE name LIKE %s LIMIT %s OFFSET %s",
+            (f"%{search}%", limit, offset)
+        )
         data = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT COUNT(*) as total FROM item WHERE name LIKE %s",
+            (f"%{search}%",)
+        )
+        total = cursor.fetchone()['total']
+
         conn.close()
-        return jsonify(data)
+
+        return jsonify({
+            "data": data,
+            "total": total,
+            "page": page,
+            "pages": (total + limit - 1) // limit
+        })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------
-# CREATE ITEM
+# CREATE
 # -----------------------------
 @app.route('/items', methods=['POST'])
 def create_item():
@@ -48,7 +72,7 @@ def create_item():
 
 
 # -----------------------------
-# UPDATE ITEM
+# UPDATE
 # -----------------------------
 @app.route('/items/<int:id>', methods=['PUT'])
 def update_item(id):
@@ -65,7 +89,7 @@ def update_item(id):
 
 
 # -----------------------------
-# DELETE ITEM
+# DELETE
 # -----------------------------
 @app.route('/items/<int:id>', methods=['DELETE'])
 def delete_item(id):
@@ -81,17 +105,25 @@ def delete_item(id):
 
 
 # -----------------------------
-# STATS (TOTAL COUNT)
+# CHART STATS
 # -----------------------------
-@app.route('/stats', methods=['GET'])
-def stats():
+@app.route('/stats/chart', methods=['GET'])
+def chart_stats():
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) AS total FROM item")
-        result = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT LEFT(name,1) as label, COUNT(*) as count
+            FROM item
+            GROUP BY label
+            ORDER BY label
+        """)
+
+        data = cursor.fetchall()
         conn.close()
-        return jsonify(result)
+        return jsonify(data)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
