@@ -156,7 +156,6 @@ let page=1;
 let totalPages=1;
 let searchQuery='';
 let editId=null;
-let lastData=[];
 
 // THEME
 window.onload=()=>{
@@ -181,14 +180,20 @@ async function load(){
 
  totalPages=r.pages;
 
+ // ✅ FIX: auto-correct page if empty
+ if(r.data.length === 0 && page > 1){
+   page--;        // go back one page
+   return load(); // reload again
+ }
+
  document.getElementById("pageInfo").innerText=`Page ${page}/${totalPages}`;
 
- if(r.data.length===0 && searchQuery){
-   showNoData();
+ if(r.data.length===0){
+   document.getElementById("list").innerHTML =
+     `<div class="no-data">No records found</div>`;
    return;
  }
 
- lastData=r.data;
  render(r.data);
 }
 
@@ -210,13 +215,6 @@ function render(data){
  });
 }
 
-// NO DATA
-function showNoData(){
- render(lastData);
- let list=document.getElementById("list");
- list.innerHTML=`<div class="no-data">❌ No records found</div>` + list.innerHTML;
-}
-
 // CONFIRM
 function confirmUI(id){
  document.getElementById(`ctrl-${id}`).innerHTML=`
@@ -232,7 +230,7 @@ function confirmUI(id){
 async function deleteItem(id){
  await fetch(`/api/items/${id}`,{method:'DELETE'});
  showSuccess("Deleted");
- load();
+ load(); // reload triggers fix
 }
 
 // SAVE
