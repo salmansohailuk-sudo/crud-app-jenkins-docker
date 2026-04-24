@@ -6,34 +6,34 @@
 
 <title>CRUD Dashboard</title>
 
-<!-- ICONS -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
 <style>
+
+/* THEME VARIABLES */
 :root {
   --bg:#f8fafc;
   --card:#ffffff;
   --text:#0f172a;
-  --primary:#2563eb;
+  --sub:#64748b;
+  --border:#e2e8f0;
 }
 
 .dark {
   --bg:#0f172a;
   --card:#1e293b;
   --text:#e2e8f0;
+  --sub:#94a3b8;
+  --border:#334155;
 }
 
 /* BODY */
 body {
   font-family:system-ui;
-  background:linear-gradient(135deg,#eef2ff,#f8fafc);
+  background:var(--bg);
   color:var(--text);
   margin:0;
   transition:0.3s;
-}
-
-.dark body {
-  background:#0f172a;
 }
 
 .container {
@@ -42,7 +42,8 @@ body {
   padding:25px;
   background:var(--card);
   border-radius:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.05);
+  box-shadow:0 10px 30px rgba(0,0,0,0.08);
+  transition:0.3s;
 }
 
 /* HEADER */
@@ -50,28 +51,62 @@ body {
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:20px;
 }
 
-.toggle {
+/* SWITCH */
+.switch {
+  position:relative;
+  width:50px;
+  height:26px;
+}
+
+.switch input {
+  display:none;
+}
+
+.slider {
+  position:absolute;
   cursor:pointer;
-  font-size:18px;
+  background:#ccc;
+  border-radius:50px;
+  top:0;left:0;right:0;bottom:0;
+  transition:0.3s;
+}
+
+.slider:before {
+  content:"";
+  position:absolute;
+  height:20px;width:20px;
+  left:3px;top:3px;
+  background:white;
+  border-radius:50%;
+  transition:0.3s;
+}
+
+input:checked + .slider {
+  background:#2563eb;
+}
+
+input:checked + .slider:before {
+  transform:translateX(24px);
 }
 
 /* SEARCH */
 .search-box {
   display:flex;
   align-items:center;
-  background:#f1f5f9;
+  background:var(--bg);
   padding:8px 12px;
   border-radius:10px;
+  border:1px solid var(--border);
 }
 
 .search-box input {
   border:none;
   background:transparent;
   outline:none;
-  margin-left:5px;
+  margin-left:6px;
+  color:var(--text);
 }
 
 /* INPUT */
@@ -79,103 +114,62 @@ input,button {
   padding:10px;
   margin:6px 5px;
   border-radius:10px;
-  border:1px solid #e2e8f0;
+  border:1px solid var(--border);
+  background:var(--card);
+  color:var(--text);
 }
 
 button {
-  background:var(--primary);
+  background:#2563eb;
   color:white;
   border:none;
   cursor:pointer;
 }
 
-button:hover { opacity:0.9; }
+/* ITEM */
+.item {
+  background:var(--bg);
+  padding:14px;
+  margin:10px 0;
+  border-radius:12px;
+  border:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.controls i {
+  margin-left:12px;
+  cursor:pointer;
+}
+
+/* CONFIRM */
+.confirm-box {
+  background:#fff7ed;
+  padding:8px;
+  border-radius:8px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
 
 /* SUCCESS */
 .success-box {
   background:#dcfce7;
-  color:#166534;
   padding:10px;
   border-radius:10px;
-  margin:10px 5px;
+  margin:10px 0;
   display:none;
 }
 
 /* ERROR */
 .error-box {
   background:#fee2e2;
-  color:#991b1b;
   padding:10px;
   border-radius:10px;
-  margin:10px 5px;
-  display:none;
-  justify-content:space-between;
-}
-
-/* ITEM */
-.item {
-  background:#f8fafc;
-  padding:14px;
   margin:10px 0;
-  border-radius:12px;
-  border:1px solid #e2e8f0;
-  display:flex;
+  display:none;
   justify-content:space-between;
-  align-items:center;
-  transition:0.3s;
-}
-
-.item:hover {
-  transform:scale(1.01);
-}
-
-.item.updated {
-  border:2px solid #22c55e;
-  background:#f0fdf4;
-}
-
-.controls i {
-  cursor:pointer;
-  margin-left:10px;
-  font-size:16px;
-}
-
-.controls i:hover {
-  transform:scale(1.2);
-}
-
-/* PAGINATION */
-.pagination {
-  text-align:center;
-  margin-top:15px;
-}
-
-/* MODAL */
-.modal {
-  position:fixed;
-  top:0;left:0;width:100%;height:100%;
-  background:rgba(0,0,0,0.4);
-  display:none;
-  justify-content:center;
-  align-items:center;
-}
-
-.modal-content {
-  background:#fff;
-  padding:20px;
-  border-radius:12px;
-  text-align:center;
-}
-
-.toast {
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  background:#22c55e;
-  color:#fff;
-  padding:10px;
-  border-radius:8px;
-  display:none;
 }
 
 </style>
@@ -187,9 +181,12 @@ button:hover { opacity:0.9; }
 
 <div class="header">
 <h2>✨ CRUD Dashboard</h2>
-<div>
-<span class="toggle" onclick="toggleTheme()">🌓</span>
-</div>
+
+<label class="switch">
+  <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+  <span class="slider"></span>
+</label>
+
 </div>
 
 <div class="search-box">
@@ -209,39 +206,27 @@ button:hover { opacity:0.9; }
 
 <div id="list"></div>
 
-<div class="pagination">
-<button onclick="prev()">Prev</button>
-<span id="pageInfo"></span>
-<button onclick="next()">Next</button>
 </div>
-
-</div>
-
-<!-- MODAL -->
-<div id="modal" class="modal">
-<div class="modal-content">
-<p>Delete this item?</p>
-<button onclick="confirmDelete()">Confirm</button>
-<button onclick="closeModal()">Cancel</button>
-</div>
-</div>
-
-<div id="toast" class="toast"></div>
 
 <script>
-let page=1,totalPages=1,editId=null,searchQuery='',deleteId=null;
+let editId=null;
+let searchQuery='';
 
-// THEME
+// THEME LOAD
+window.onload = () => {
+ let saved = localStorage.getItem("theme");
+ if(saved === "dark"){
+   document.body.classList.add("dark");
+   document.getElementById("themeToggle").checked = true;
+ }
+ load();
+};
+
+// TOGGLE
 function toggleTheme(){
- document.body.classList.toggle('dark');
-}
-
-// TOAST
-function showToast(msg){
- let t=document.getElementById("toast");
- t.innerText=msg;
- t.style.display="block";
- setTimeout(()=>t.style.display="none",2000);
+ document.body.classList.toggle("dark");
+ let isDark = document.body.classList.contains("dark");
+ localStorage.setItem("theme", isDark ? "dark" : "light");
 }
 
 // SUCCESS
@@ -263,11 +248,8 @@ function hideError(){
 
 // LOAD
 async function load(){
- let res=await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
+ let res=await fetch(`/api/items?search=${searchQuery}`);
  let r=await res.json();
-
- totalPages=r.pages;
- document.getElementById('pageInfo').innerText=`Page ${page}/${totalPages}`;
 
  let list=document.getElementById('list');
  list.innerHTML='';
@@ -275,23 +257,46 @@ async function load(){
  r.data.forEach(i=>{
   let div=document.createElement('div');
   div.className="item";
-  div.dataset.id=i.id;
 
-  div.innerHTML=`${escapeHtml(i.name)}
-   <div class="controls">
-   <i class="fa fa-pen" onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')"></i>
-   <i class="fa fa-trash" onclick="openModal(${i.id})"></i>
-   </div>`;
+  div.innerHTML=`
+    <span>${escapeHtml(i.name)}</span>
+    <div class="controls" id="ctrl-${i.id}">
+      <i class="fa fa-pen" onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')"></i>
+      <i class="fa fa-trash" onclick="showConfirm(${i.id})"></i>
+    </div>
+  `;
 
   list.appendChild(div);
  });
 }
 
+// CONFIRM
+function showConfirm(id){
+ let ctrl=document.getElementById(`ctrl-${id}`);
+
+ ctrl.innerHTML=`
+   <div class="confirm-box">
+     Delete?
+     <button onclick="deleteItem(${id})">✔</button>
+     <button onclick="load()">✖</button>
+   </div>
+ `;
+}
+
+// DELETE
+async function deleteItem(id){
+ let res=await fetch(`/api/items/${id}`,{method:'DELETE'});
+ if(!res.ok) return showError("Delete failed");
+
+ showSuccess("Deleted");
+ load();
+}
+
 // SAVE
 async function saveItem(){
  hideError();
-
  let name=document.getElementById('name').value;
+
  if(!name) return showError("Enter value");
 
  if(!editId){
@@ -304,7 +309,7 @@ async function saveItem(){
   let d=await res.json();
   if(!res.ok) return showError(d.error);
 
-  showToast("Added");
+  showSuccess("Added");
 
  } else {
   let res=await fetch(`/api/items/${editId}`,{
@@ -317,8 +322,6 @@ async function saveItem(){
   if(!res.ok) return showError(d.error);
 
   showSuccess("Updated");
-
-  setTimeout(()=>location.reload(),800);
   editId=null;
  }
 
@@ -332,41 +335,16 @@ function editItem(id,name){
  editId=id;
 }
 
-// DELETE
-function openModal(id){
- deleteId=id;
- document.getElementById('modal').style.display="flex";
-}
-function closeModal(){
- document.getElementById('modal').style.display="none";
-}
-async function confirmDelete(){
- let res=await fetch(`/api/items/${deleteId}`,{method:'DELETE'});
- closeModal();
-
- if(!res.ok) return showError("Delete failed");
-
- showToast("Deleted");
- setTimeout(()=>location.reload(),800);
-}
-
 // SEARCH
 function searchItems(){
  searchQuery=document.getElementById('search').value;
- page=1;
  load();
 }
-
-// PAGINATION
-function next(){ if(page<totalPages){page++;load();}}
-function prev(){ if(page>1){page--;load();}}
 
 // SAFE
 function escapeHtml(t){
  return t.replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
-
-load();
 </script>
 
 </body>
