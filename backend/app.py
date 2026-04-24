@@ -110,20 +110,36 @@ def delete_item(id):
 # -----------------------------
 # PIE CHART STATS (TOTAL RECORDS)
 # -----------------------------
+# -----------------------------
+# PIE CHART (MEANINGFUL BREAKDOWN)
+# -----------------------------
 @app.route('/stats/chart', methods=['GET'])
 def chart_stats():
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT COUNT(*) as total FROM item")
-        total = cursor.fetchone()['total']
+        # Group data: A vs Others
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN LOWER(name) LIKE 'a%%' THEN 'Starts with A'
+                    ELSE 'Others'
+                END as label,
+                COUNT(*) as count
+            FROM item
+            GROUP BY label
+        """)
 
+        rows = cursor.fetchall()
         conn.close()
 
+        labels = [row['label'] for row in rows]
+        values = [row['count'] for row in rows]
+
         return jsonify({
-            "labels": ["Records"],
-            "values": [total]
+            "labels": labels,
+            "values": values
         })
 
     except Exception as e:
