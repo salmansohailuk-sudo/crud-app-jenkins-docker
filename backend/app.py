@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify
 import pymysql
 import os
+import re
 
 app = Flask(__name__)
 
-# DB connection
+# -----------------------------
+# DB CONNECTION
+# -----------------------------
 def get_connection():
     return pymysql.connect(
         host=os.getenv("DB_HOST"),
@@ -13,6 +16,17 @@ def get_connection():
         database=os.getenv("DB_NAME"),
         cursorclass=pymysql.cursors.DictCursor
     )
+
+# -----------------------------
+# VALIDATION (SIMPLE + SAFE)
+# -----------------------------
+def is_valid_name(name):
+    if not name or len(name.strip()) == 0:
+        return False
+
+    # allow only letters, numbers, spaces
+    return re.match("^[a-zA-Z0-9 ]+$", name) is not None
+
 
 # -----------------------------
 # GET ITEMS (SEARCH + PAGINATION)
@@ -30,7 +44,7 @@ def get_items():
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT * FROM item WHERE name LIKE %s LIMIT %s OFFSET %s",
+            "SELECT * FROM item WHERE name LIKE %s ORDER BY id DESC LIMIT %s OFFSET %s",
             (f"%{search}%", limit, offset)
         )
         data = cursor.fetchall()
@@ -55,35 +69,74 @@ def get_items():
 
 
 # -----------------------------
-# CREATE
+# CREATE (WITH DUPLICATE CHECK)
 # -----------------------------
 @app.route('/items', methods=['POST'])
 def create_item():
     try:
         data = request.json
+        name = data.get('name', '').strip()
+
+        if not is_valid_name(name):
+            return jsonify({"error": "Invalid input"}), 400
+
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO item (name) VALUES (%s)", (data['name'],))
+
+        # check duplicate
+        cursor.execute("SELECT id FROM item WHERE name=%s", (name,))
+        if cursor.fetchone():
+            return jsonify({"error": "Duplicate entry not allowed"}), 400
+
+        cursor.execute("INSERT INTO item (name) VALUES (%s)", (name,))
         conn.commit()
+
+        # return inserted id (helps frontend sync)
+        new_id = cursor.lastrowid
+
         conn.close()
-        return jsonify({"message": "created"})
+
+        return jsonify({
+            "message": "created",
+            "id": new_id
+        })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------
-# UPDATE
+# UPDATE (WITH DUPLICATE CHECK)
 # -----------------------------
 @app.route('/items/<int:id>', methods=['PUT'])
 def update_item(id):
     try:
         data = request.json
+        name = data.get('name', '').strip()
+
+        if not is_valid_name(name):
+            return jsonify({"error": "Invalid input"}), 400
+
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE item SET name=%s WHERE id=%s", (data['name'], id))
+
+        # check duplicate excluding current
+        cursor.execute(
+            "SELECT id FROM item WHERE name=%s AND id!=%s",
+            (name, id)
+        )
+        if cursor.fetchone():
+            return jsonify({"error": "Duplicate entry not allowed"}), 400
+
+        cursor.execute(
+            "UPDATE item SET name=%s WHERE id=%s",
+            (name, id)
+        )
         conn.commit()
         conn.close()
+
         return jsonify({"message": "updated"})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -96,10 +149,13 @@ def delete_item(id):
     try:
         conn = get_connection()
         cursor = conn.cursor()
+
         cursor.execute("DELETE FROM item WHERE id=%s", (id,))
         conn.commit()
         conn.close()
+
         return jsonify({"message": "deleted"})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
