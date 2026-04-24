@@ -107,22 +107,24 @@ def delete_item(id):
 # -----------------------------
 # CHART STATS
 # -----------------------------
+# -----------------------------
+# PIE CHART STATS (TOTAL RECORDS)
+# -----------------------------
 @app.route('/stats/chart', methods=['GET'])
 def chart_stats():
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT LEFT(name,1) as label, COUNT(*) as count
-            FROM item
-            GROUP BY label
-            ORDER BY label
-        """)
+        cursor.execute("SELECT COUNT(*) as total FROM item")
+        total = cursor.fetchone()['total']
 
-        data = cursor.fetchall()
         conn.close()
-        return jsonify(data)
+
+        return jsonify({
+            "labels": ["Records"],
+            "values": [total]
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
