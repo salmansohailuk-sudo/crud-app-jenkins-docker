@@ -6,19 +6,18 @@
 
 <title>CRUD Dashboard</title>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 :root {
   --bg: #0f172a;
   --card: #1e293b;
-  --text: white;
+  --text: #e2e8f0;
+  --primary: #3b82f6;
 }
 
 .light {
-  --bg: #f1f5f9;
+  --bg: #f8fafc;
   --card: #ffffff;
-  --text: black;
+  --text: #0f172a;
 }
 
 body {
@@ -29,32 +28,60 @@ body {
 }
 
 .container {
-  max-width: 600px;
+  max-width: 650px;
   margin: auto;
   padding: 15px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  margin-left: 5px;
 }
 
 input, button {
   padding: 10px;
   margin: 5px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
 }
 
 button {
-  background: #3b82f6;
+  background: var(--primary);
   color: white;
   cursor: pointer;
 }
 
 .item {
   background: var(--card);
-  padding: 10px;
-  margin: 5px 0;
-  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 12px;
   display: flex;
   justify-content: space-between;
-  flex-wrap: wrap;
+  transition: 0.3s;
+}
+
+/* highlight edited */
+.item.updated {
+  border: 2px solid #22c55e;
+  box-shadow: 0 0 10px rgba(34,197,94,0.5);
 }
 
 .controls {
@@ -62,109 +89,150 @@ button {
   gap: 5px;
 }
 
-.pagination {
-  text-align: center;
-  margin-top: 10px;
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px;
+  border-radius: 8px;
+  color: white;
+  display: none;
 }
 
-@media (max-width: 600px) {
-  .item {
-    flex-direction: column;
-  }
+.toast.success { background: #22c55e; }
+.toast.error { background: #ef4444; }
+
+@media (max-width:600px){
+  .header { flex-direction: column; }
 }
 </style>
 </head>
 
 <body>
+
 <div class="container">
 
-<h2>
-CRUD Dashboard
-<span onclick="toggleMode()" style="float:right;cursor:pointer;">🌓</span>
-</h2>
+<div class="header">
+  <h2>
+    CRUD Dashboard
+    <span onclick="toggleMode()">🌓</span>
+  </h2>
 
-<input id="search" placeholder="Search..." onkeyup="searchItems()">
+  <div class="search-box">
+    🔍
+    <input id="search" placeholder="Search..." onkeyup="searchItems()">
+  </div>
+</div>
 
 <input id="name" placeholder="Enter item">
 <button onclick="saveItem()">Save</button>
 
 <div id="list"></div>
 
-<div class="pagination">
-  <button onclick="prev()">Prev</button>
-  <span id="pageInfo"></span>
-  <button onclick="next()">Next</button>
 </div>
 
-<canvas id="chart" height="200"></canvas>
-
-</div>
+<div id="toast" class="toast"></div>
 
 <script>
-let page = 1;
-let totalPages = 1;
 let editId = null;
 let searchQuery = '';
-let chart;
 
-// LOAD DATA
+function showToast(msg, type="success") {
+  let t = document.getElementById("toast");
+  t.innerText = msg;
+  t.className = "toast " + type;
+  t.style.display = "block";
+  setTimeout(()=>t.style.display="none", 2500);
+}
+
+// LOAD
 async function load() {
-  let res = await fetch(`/api/items?page=${page}&limit=5&search=${searchQuery}`);
-  let result = await res.json();
-
-  totalPages = result.pages;
-
-  document.getElementById('pageInfo').innerText =
-    `Page ${page} / ${totalPages}`;
+  let res = await fetch(`/api/items?search=${searchQuery}`);
+  let data = await res.json();
 
   let list = document.getElementById('list');
   list.innerHTML = '';
 
-  result.data.forEach(i => {
-    list.innerHTML += `
-      <div class="item">
-        ${escapeHtml(i.name)}
-        <div class="controls">
-          <button onclick="editItem(${i.id}, '${encodeURIComponent(i.name)}')">Edit</button>
-          <button onclick="deleteItem(${i.id})">Delete</button>
-        </div>
-      </div>
-    `;
+  data.data.forEach(i => {
+    list.appendChild(createItemElement(i));
   });
-
-  loadChart();
 }
 
-// SEARCH
-function searchItems() {
-  searchQuery = document.getElementById('search').value;
-  page = 1;
-  load();
+// CREATE DOM ITEM
+function createItemElement(i) {
+  let div = document.createElement('div');
+  div.className = "item";
+  div.setAttribute("data-id", i.id);
+
+  div.innerHTML = `
+    ${escapeHtml(i.name)}
+    <div class="controls">
+      <button onclick="editItem(${i.id}, '${encodeURIComponent(i.name)}')">Edit</button>
+      <button onclick="deleteItem(${i.id}, this)">Delete</button>
+    </div>
+  `;
+  return div;
 }
 
-// SAVE
+// OPTIMISTIC SAVE
 async function saveItem() {
   let name = document.getElementById('name').value;
+  if (!name) return showToast("Enter value","error");
 
-  if (!name) return alert("Enter name");
+  // CREATE
+  if (!editId) {
+    let tempId = "temp-" + Date.now();
 
-  if (editId) {
-    await fetch(`/api/items/${editId}`, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name})
-    });
-    editId = null;
-  } else {
-    await fetch('/api/items', {
+    // show instantly
+    let fakeItem = {id: tempId, name};
+    let list = document.getElementById('list');
+    let el = createItemElement(fakeItem);
+    el.style.opacity = "0.5";
+    list.prepend(el);
+
+    // API call
+    let res = await fetch('/api/items', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
+
+    let data = await res.json();
+
+    if (!res.ok) {
+      el.remove(); // rollback
+      return showToast(data.error,"error");
+    }
+
+    showToast("Added");
+
+    load(); // sync
+
+  } else {
+    // UPDATE (highlight row)
+    let res = await fetch(`/api/items/${editId}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name})
+    });
+
+    let data = await res.json();
+
+    if (!res.ok) return showToast(data.error,"error");
+
+    // highlight updated row
+    let row = document.querySelector(`[data-id='${editId}']`);
+    if (row) {
+      row.classList.add("updated");
+      setTimeout(()=>row.classList.remove("updated"), 1500);
+    }
+
+    showToast("Updated");
+    editId = null;
+    load();
   }
 
   document.getElementById('name').value = '';
-  load();
 }
 
 // EDIT
@@ -173,57 +241,39 @@ function editItem(id, name) {
   editId = id;
 }
 
-// DELETE
-async function deleteItem(id) {
-  await fetch(`/api/items/${id}`, {method:'DELETE'});
+// DELETE (optimistic)
+async function deleteItem(id, btn) {
+  let row = btn.closest('.item');
+
+  // remove instantly
+  row.style.opacity = "0.3";
+
+  let res = await fetch(`/api/items/${id}`, {method:'DELETE'});
+
+  if (!res.ok) {
+    row.style.opacity = "1"; // rollback
+    let d = await res.json();
+    return showToast(d.error,"error");
+  }
+
+  row.remove();
+  showToast("Deleted");
+}
+
+// SEARCH
+function searchItems(){
+  searchQuery = document.getElementById('search').value;
   load();
 }
 
-// PAGINATION
-function next() {
-  if (page < totalPages) {
-    page++;
-    load();
-  }
-}
-
-function prev() {
-  if (page > 1) {
-    page--;
-    load();
-  }
-}
-
 // THEME
-function toggleMode() {
+function toggleMode(){
   document.body.classList.toggle('light');
 }
 
-// CHART
-async function loadChart() {
-  let res = await fetch('/api/stats/chart');
-  let data = await res.json();
-
-  let ctx = document.getElementById('chart').getContext('2d');
-
-  if (chart) chart.destroy();
-
-  chart = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: data.labels,
-      datasets: [{
-        label: 'Total Records',
-        label: 'Item Distribution',
-        data: data.values
-      }]
-    }
-  });
-}
-
-  // SAFE HTML
-function escapeHtml(text) {
-  return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// SAFE
+function escapeHtml(t){
+  return t.replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 load();
