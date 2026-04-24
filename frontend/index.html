@@ -6,30 +6,95 @@
 <title>CRUD Dashboard</title>
 
 <style>
-body {font-family:system-ui;background:#f8fafc;color:#0f172a;margin:0;}
-.container {max-width:700px;margin:auto;padding:20px;}
+body {
+  font-family: system-ui;
+  background: linear-gradient(135deg,#eef2ff,#f8fafc);
+  margin:0;
+  color:#0f172a;
+}
 
-.header {display:flex;justify-content:space-between;align-items:center;}
+.container {
+  max-width:700px;
+  margin:40px auto;
+  padding:25px;
+  background:#ffffff;
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.05);
+}
+
+/* HEADER */
+.header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:15px;
+}
 
 .search-box {
-  display:flex;align-items:center;background:#fff;padding:8px 12px;
-  border-radius:10px;border:1px solid #e2e8f0;
+  display:flex;
+  align-items:center;
+  background:#f1f5f9;
+  padding:8px 12px;
+  border-radius:10px;
 }
-.search-box input {border:none;outline:none;margin-left:6px;}
 
-input,button {
-  padding:10px;margin:6px 5px;border-radius:10px;border:1px solid #e2e8f0;
+.search-box input {
+  border:none;
+  background:transparent;
+  margin-left:5px;
+  outline:none;
 }
-button {background:#2563eb;color:#fff;border:none;cursor:pointer;}
 
+/* INPUT */
+input, button {
+  padding:10px;
+  margin:6px 5px;
+  border-radius:10px;
+  border:1px solid #e2e8f0;
+}
+
+button {
+  background:#2563eb;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+button:hover {
+  opacity:0.9;
+}
+
+/* SUCCESS INLINE */
+.success-box {
+  background:#dcfce7;
+  color:#166534;
+  padding:10px;
+  border-radius:10px;
+  margin:10px 5px;
+  display:none;
+}
+
+/* ERROR */
 .error-box {
-  background:#fee2e2;color:#991b1b;padding:10px;border-radius:10px;
-  margin:10px 5px;display:none;justify-content:space-between;
+  background:#fee2e2;
+  color:#991b1b;
+  padding:10px;
+  border-radius:10px;
+  margin:10px 5px;
+  display:none;
+  justify-content:space-between;
 }
 
+/* ITEMS */
 .item {
-  background:#fff;padding:14px;margin:10px 0;border-radius:12px;
-  border:1px solid #e2e8f0;display:flex;justify-content:space-between;
+  background:#f8fafc;
+  padding:14px;
+  margin:10px 0;
+  border-radius:12px;
+  border:1px solid #e2e8f0;
+  display:flex;
+  justify-content:space-between;
+  transition:0.3s;
 }
 
 .item.updated {
@@ -37,14 +102,51 @@ button {background:#2563eb;color:#fff;border:none;cursor:pointer;}
   background:#f0fdf4;
 }
 
-.controls {display:flex;gap:6px;}
-
-.pagination {text-align:center;margin-top:10px;}
-
-.toast {
-  position:fixed;bottom:20px;right:20px;background:#22c55e;
-  color:#fff;padding:10px 15px;border-radius:8px;display:none;
+.controls {
+  display:flex;
+  gap:6px;
 }
+
+/* PAGINATION */
+.pagination {
+  text-align:center;
+  margin-top:15px;
+}
+
+/* MODAL */
+.modal {
+  position:fixed;
+  top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content {
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  text-align:center;
+  width:300px;
+}
+
+.modal button {
+  margin:10px;
+}
+
+/* TOAST */
+.toast {
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#22c55e;
+  color:#fff;
+  padding:10px 15px;
+  border-radius:8px;
+  display:none;
+}
+
 </style>
 </head>
 
@@ -53,13 +155,17 @@ button {background:#2563eb;color:#fff;border:none;cursor:pointer;}
 <div class="container">
 
 <div class="header">
-<h2>CRUD Dashboard</h2>
-<div class="search-box">🔍<input id="search" placeholder="Search..." onkeyup="searchItems()"></div>
+<h2>✨ CRUD Dashboard</h2>
+<div class="search-box">🔍<input id="search" onkeyup="searchItems()" placeholder="Search..."></div>
 </div>
 
 <input id="name" placeholder="Enter item">
 <button onclick="saveItem()">Save</button>
 
+<!-- SUCCESS -->
+<div id="successBox" class="success-box"></div>
+
+<!-- ERROR -->
 <div id="errorBox" class="error-box">
   <span id="errorText"></span>
   <button onclick="hideError()">OK</button>
@@ -75,17 +181,35 @@ button {background:#2563eb;color:#fff;border:none;cursor:pointer;}
 
 </div>
 
+<!-- DELETE MODAL -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <p>Are you sure you want to delete?</p>
+    <button onclick="confirmDelete()">Confirm</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
 let page=1,totalPages=1,editId=null,searchQuery='';
+let deleteId=null;
 
 // TOAST
 function showToast(msg){
  let t=document.getElementById("toast");
  t.innerText=msg;
  t.style.display="block";
- setTimeout(()=>t.style.display="none",1500);
+ setTimeout(()=>t.style.display="none",2000);
+}
+
+// SUCCESS INLINE
+function showSuccess(msg){
+ let box=document.getElementById("successBox");
+ box.innerText=msg;
+ box.style.display="block";
+ setTimeout(()=>box.style.display="none",2000);
 }
 
 // ERROR
@@ -116,7 +240,7 @@ async function load(){
   div.innerHTML=`${escapeHtml(i.name)}
    <div class="controls">
    <button onclick="editItem(${i.id},'${encodeURIComponent(i.name)}')">Edit</button>
-   <button onclick="deleteItem(${i.id},this)">Delete</button>
+   <button onclick="openModal(${i.id})">Delete</button>
    </div>`;
 
   list.appendChild(div);
@@ -148,7 +272,6 @@ async function saveItem(){
   if(!res.ok) return showError(d.error);
 
   showToast("Added");
-  load();
 
  } else {
   let res=await fetch(`/api/items/${editId}`,{
@@ -160,15 +283,14 @@ async function saveItem(){
   let d=await res.json();
   if(!res.ok) return showError(d.error);
 
-  showToast("Updated");
+  showSuccess("Updated successfully");
 
-  // 🔄 FULL REFRESH AFTER UPDATE
-  setTimeout(()=>location.reload(), 800);
-
+  setTimeout(()=>location.reload(),800);
   editId=null;
  }
 
  document.getElementById('name').value='';
+ load();
 }
 
 // EDIT
@@ -177,22 +299,22 @@ function editItem(id,name){
  editId=id;
 }
 
-// DELETE
-async function deleteItem(id,btn){
- let row=btn.closest('.item');
- row.style.opacity="0.4";
+// DELETE MODAL
+function openModal(id){
+ deleteId=id;
+ document.getElementById('modal').style.display="flex";
+}
+function closeModal(){
+ document.getElementById('modal').style.display="none";
+}
+async function confirmDelete(){
+ let res=await fetch(`/api/items/${deleteId}`,{method:'DELETE'});
+ closeModal();
 
- let res=await fetch(`/api/items/${id}`,{method:'DELETE'});
-
- if(!res.ok){
-   row.style.opacity="1";
-   return showError("Delete failed");
- }
+ if(!res.ok) return showError("Delete failed");
 
  showToast("Deleted");
-
- // 🔄 FULL REFRESH AFTER DELETE
- setTimeout(()=>location.reload(), 800);
+ setTimeout(()=>location.reload(),800);
 }
 
 // PAGINATION
