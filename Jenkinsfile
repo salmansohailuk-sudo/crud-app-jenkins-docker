@@ -1,7 +1,6 @@
 pipeline {
 agent any
 
-```
 environment {
     COMPOSE_DOCKER_CLI_BUILD = '1'
     DOCKER_BUILDKIT = '1'
@@ -60,6 +59,5 @@ post {
         sh 'docker compose logs || true'
     }
 }
-```
 
 }
