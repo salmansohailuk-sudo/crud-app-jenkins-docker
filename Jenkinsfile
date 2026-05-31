@@ -1,6 +1,7 @@
 pipeline {
 agent any
 
+```
 environment {
     COMPOSE_DOCKER_CLI_BUILD = '1'
     DOCKER_BUILDKIT = '1'
@@ -47,17 +48,20 @@ stages {
             sh 'curl -f http://localhost || exit 1'
         }
     }
+
+    stage('Deployment Success') {
+        steps {
+            echo 'Deployment completed successfully!'
+        }
+    }
 }
 
 post {
-    success {
-        echo 'Deployment completed successfully!'
-    }
-
     failure {
         echo 'Deployment failed!'
         sh 'docker compose logs || true'
     }
 }
+```
 
 }
