@@ -1,27 +1,45 @@
-version: '3'
+pipeline {
+    agent any  // run on any available Jenkins node
 
-services:
+    stages {
 
-  # Backend Python service
-  backend:
-    build:
-      context: .
-      dockerfile: backend.Dockerfile
-    environment:
-      DB_USER: admin
-      DB_PASS: Cloud123
-      DB_HOST: database-1.cdkmgk6kaqjz.us-west-2.rds.amazonaws.com
-      DB_NAME: cruddb
-    ports:
-      - "5000:5000"
+        stage('Checkout Code') {
+            steps {
+                // Pull latest code from repository
+                checkout scm
+            }
+        }
 
-  # Frontend Nginx service
-  nginx:
-    image: nginx
-    volumes:
-      - ./frontend:/usr/share/nginx/html   # serve HTML
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
+        stage('Build Backend Image') {
+            steps {
+                // Build Docker image for backend service
+                // -f specifies Dockerfile
+                sh 'docker build -f backend.Dockerfile -t crud-backend .'
+            }
+        }
+
+        stage('Stop Existing Containers') {
+            steps {
+                // Stop old running containers (if any)
+                // prevents port conflicts
+                sh 'docker-compose down || true'
+            }
+        }
+
+        stage('Start Services') {
+            steps {
+                // Start backend + nginx containers
+                // -d runs in background
+                sh 'docker-compose up -d'
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                // Simple health check
+                sh 'sleep 5'
+                sh 'curl -f http://localhost || exit 1'
+            }
+        }
+    }
+}
