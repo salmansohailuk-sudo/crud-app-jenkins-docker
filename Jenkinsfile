@@ -1,5 +1,11 @@
+```groovy
 pipeline {
-    agent any  // run on any available Jenkins node
+    agent any
+
+    environment {
+        COMPOSE_DOCKER_CLI_BUILD = '1'
+        DOCKER_BUILDKIT = '1'
+    }
 
     stages {
 
@@ -10,36 +16,60 @@ pipeline {
             }
         }
 
+        stage('Verify Docker Setup') {
+            steps {
+                sh 'docker --version'
+                sh 'docker buildx version'
+                sh 'docker compose version'
+            }
+        }
+
         stage('Build Backend Image') {
             steps {
-                // Build Docker image for backend service
-                // -f specifies Dockerfile
+                // Build backend Docker image
                 sh 'docker build -f backend.Dockerfile -t crud-backend .'
             }
         }
 
         stage('Stop Existing Containers') {
             steps {
-                // Stop old running containers (if any)
-                // prevents port conflicts
-                sh 'docker-compose down || true'
+                // Stop and remove old containers
+                sh 'docker compose down || true'
             }
         }
 
         stage('Start Services') {
             steps {
-                // Start backend + nginx containers
-                // -d runs in background
-                sh 'docker-compose up -d'
+                // Start all services in detached mode
+                sh 'docker compose up -d --build'
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                // Simple health check
-                sh 'sleep 5'
+                // Wait for containers to initialize
+                sh 'sleep 10'
+
+                // Check running containers
+                sh 'docker ps'
+
+                // Health check
                 sh 'curl -f http://localhost || exit 1'
             }
         }
     }
+
+    post {
+        success {
+            echo 'Deployment completed successfully!'
+        }
+
+        failure {
+            echo 'Deployment failed!'
+
+            // Show container logs for debugging
+            sh 'docker compose logs || true'
+        }
+    }
 }
+```
