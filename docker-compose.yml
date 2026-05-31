@@ -3,7 +3,31 @@
 services:
 
   # Backend Python service
+  backend:version: '3'
+
+services:
+
   backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    environment:
+      DB_USER: admin
+      DB_PASS: Cloud123
+      DB_HOST: database-1.cdkmgk6kaqjz.us-west-2.rds.amazonaws.com
+      DB_NAME: cruddb
+    ports:
+      - "5000:5000"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
     build:
       context: .
       dockerfile: backend.Dockerfile
