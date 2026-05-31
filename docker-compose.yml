@@ -1,16 +1,20 @@
-backend:
-  image: crud-backend
-  ports:
-    - "5000:5000"
-  environment:
-    DB_USER: admin
-    DB_PASS: Cloud123
-    DB_HOST: database-1.cdkmgk6kaqjz.us-west-2.rds.amazonaws.com
-    DB_NAME: cruddb
+version: '3'
 
-frontend:
-  image: crud-nginx
-  ports:
-    - "80:80"
-  depends_on:
-    - backend
+services:
+
+  backend:
+    image: crud-backend
+    environment:
+      DB_USER: admin
+      DB_PASS: Cloud123
+      DB_HOST: database-1.cdkmgk6kaqjz.us-west-2.rds.amazonaws.com
+      DB_NAME: cruddb
+    ports:
+      - "5000:5000"
+
+  frontend:
+    image: crud-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
