@@ -1,47 +1,27 @@
-pipeline {
-    agent any
+version: '3'
 
-    stages {
+services:
 
-        stage('Checkout Code') {
-            steps {
-                checkout scm
-            }
-        }
+  # Backend Python service
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    environment:
+      DB_USER: admin
+      DB_PASS: Cloud123
+      DB_HOST: database-1.cdkmgk6kaqjz.us-west-2.rds.amazonaws.com
+      DB_NAME: cruddb
+    ports:
+      - "5000:5000"
 
-        stage('Build Backend Image') {
-            steps {
-                sh '''
-                docker build \
-                -f backend.Dockerfile \
-                -t crud-backend .
-                '''
-            }
-        }
-
-        stage('Stop Existing Containers') {
-            steps {
-                sh '''
-                docker compose down || true
-                '''
-            }
-        }
-
-        stage('Start Services') {
-            steps {
-                sh '''
-                docker compose up -d --build
-                '''
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                sh '''
-                sleep 10
-                curl -f http://localhost
-                '''
-            }
-        }
-    }
-}
+  # Frontend Nginx service
+  nginx:
+    image: nginx
+    volumes:
+      - ./frontend:/usr/share/nginx/html   # serve HTML
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
