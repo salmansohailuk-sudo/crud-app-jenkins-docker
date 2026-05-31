@@ -24,6 +24,15 @@ pipeline {
         }
 
         // ==========================================
+        // Validate docker-compose.yml BEFORE deploy
+        // ==========================================
+        stage('Validate Compose File') {
+            steps {
+                sh 'docker compose config'
+            }
+        }
+
+        // ==========================================
         // Build Backend Image
         // ==========================================
         stage('Build Backend Image') {
@@ -33,7 +42,7 @@ pipeline {
         }
 
         // ==========================================
-        // Build Nginx Image (copies frontend files)
+        // Build Frontend (Nginx) Image
         // ==========================================
         stage('Build Frontend (Nginx Image)') {
             steps {
@@ -41,18 +50,27 @@ pipeline {
             }
         }
 
+        // ==========================================
+        // Stop old containers
+        // ==========================================
         stage('Stop Existing Containers') {
             steps {
                 sh 'docker compose down || true'
             }
         }
 
+        // ==========================================
+        // Start new containers (NO build here)
+        // ==========================================
         stage('Start Services') {
             steps {
-                sh 'docker compose up -d --build'
+                sh 'docker compose up -d'
             }
         }
 
+        // ==========================================
+        // Verify Deployment
+        // ==========================================
         stage('Verify Deployment') {
             steps {
                 sh 'sleep 10'
