@@ -14,7 +14,7 @@ services:
     ports:
       - "5000:5000"
 
-  frontend:
+  nginx:
     build:
       context: .
       dockerfile: nginx.Dockerfile
