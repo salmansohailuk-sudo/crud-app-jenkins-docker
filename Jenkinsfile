@@ -37,7 +37,7 @@ pipeline {
         // ==========================================
         stage('Build Frontend (Nginx Image)') {
             steps {
-                sh 'docker build -f nginx.Dockerfile -t crud-nginx .'
+                sh 'docker build -f frontend.Dockerfile -t crud-nginx .'
             }
         }
 
